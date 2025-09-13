@@ -40,6 +40,9 @@ function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [analysisProgress, setAnalysisProgress] = useState(0)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [analysisResults, setAnalysisResults] = useState(null)
+  const [analysisError, setAnalysisError] = useState(null)
+  const [currentJobId, setCurrentJobId] = useState(null)
   const [scenarioData, setScenarioData] = useState({
     brandA: '',
     brandB: '',
@@ -48,29 +51,107 @@ function App() {
     budget: ''
   })
 
-  // Simulate analysis progress
+  // API base URL - will be updated with your Heroku URL
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://your-heroku-app.herokuapp.com'
+
+  // Poll for job status when analyzing
   useEffect(() => {
-    if (isAnalyzing) {
-      const interval = setInterval(() => {
-        setAnalysisProgress(prev => {
-          if (prev >= 100) {
-            setIsAnalyzing(false)
-            return 100
+    if (isAnalyzing && currentJobId) {
+      const interval = setInterval(async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/jobs/${currentJobId}`)
+          
+          if (response.ok) {
+            const jobStatus = await response.json()
+            setAnalysisProgress(jobStatus.progress || 0)
+            
+            if (jobStatus.status === 'completed' && jobStatus.analysis) {
+              setAnalysisResults(jobStatus.analysis)
+              setIsAnalyzing(false)
+              setAnalysisProgress(100)
+            } else if (jobStatus.status === 'failed') {
+              setAnalysisError(jobStatus.error || 'Analysis failed')
+              setIsAnalyzing(false)
+              setAnalysisProgress(0)
+            }
           }
-          return prev + Math.random() * 15
-        })
-      }, 500)
+        } catch (error) {
+          console.error('Error polling job status:', error)
+        }
+      }, 1000)
+      
       return () => clearInterval(interval)
     }
-  }, [isAnalyzing])
+  }, [isAnalyzing, currentJobId, API_BASE_URL])
 
-  const startAnalysis = () => {
+  const startAnalysis = async () => {
+    if (!scenarioData.brandA || !scenarioData.brandB || !scenarioData.partnershipType) {
+      alert('Please fill in all required fields')
+      return
+    }
+
     setIsAnalyzing(true)
     setAnalysisProgress(0)
+    setAnalysisResults(null)
+    setAnalysisError(null)
+    setCurrentJobId(null)
+
+    try {
+      // Create scenario (no authentication needed for demo)
+      const scenarioResponse = await fetch(`${API_BASE_URL}/api/scenarios`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          brand_a: scenarioData.brandA,
+          brand_b: scenarioData.brandB,
+          partnership_type: scenarioData.partnershipType,
+          target_audience: scenarioData.targetAudience,
+          budget_range: scenarioData.budget
+        })
+      })
+
+      if (!scenarioResponse.ok) {
+        throw new Error('Failed to create scenario')
+      }
+
+      const scenario = await scenarioResponse.json()
+
+      // Start analysis
+      const analysisResponse = await fetch(`${API_BASE_URL}/api/scenarios/${scenario.id}/analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!analysisResponse.ok) {
+        throw new Error('Failed to start analysis')
+      }
+
+      const analysisJob = await analysisResponse.json()
+      setCurrentJobId(analysisJob.job_id)
+
+    } catch (error) {
+      console.error('Analysis failed:', error)
+      setAnalysisError(error.message)
+      setIsAnalyzing(false)
+      setAnalysisProgress(0)
+    }
   }
 
   const handleInputChange = (field, value) => {
     setScenarioData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const formatRiskLevel = (riskLevel) => {
+    const colors = {
+      low: 'text-green-600',
+      medium: 'text-yellow-600', 
+      high: 'text-red-600'
+    }
+    return colors[riskLevel?.toLowerCase()] || 'text-gray-600'
   }
 
   return (
@@ -372,9 +453,15 @@ function App() {
                     </div>
                   )}
 
+                  {analysisError && (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-sm text-red-700">Error: {analysisError}</p>
+                    </div>
+                  )}
+
                   <Button 
                     onClick={startAnalysis} 
-                    disabled={isAnalyzing || !scenarioData.brandA || !scenarioData.brandB}
+                    disabled={isAnalyzing || !scenarioData.brandA || !scenarioData.brandB || !scenarioData.partnershipType}
                     className="w-full impactlens-gradient hover:opacity-90 transition-opacity"
                   >
                     {isAnalyzing ? 'Analyzing...' : 'Start AI Analysis'}
@@ -383,7 +470,7 @@ function App() {
               </Card>
 
               {/* Analysis Results */}
-              {analysisProgress === 100 && (
+              {analysisResults && (
                 <Card className="luxury-shadow animate-slide-up">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -395,30 +482,52 @@ function App() {
                   <CardContent className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="text-center p-4 bg-primary/5 rounded-lg">
-                        <div className="text-2xl font-bold text-primary">8.7</div>
+                        <div className="text-2xl font-bold text-primary">
+                          {analysisResults.brand_alignment_score?.toFixed(1) || 'N/A'}
+                        </div>
                         <div className="text-sm text-muted-foreground">Brand Alignment</div>
                       </div>
                       <div className="text-center p-4 bg-primary/5 rounded-lg">
-                        <div className="text-2xl font-bold text-primary">73%</div>
+                        <div className="text-2xl font-bold text-primary">
+                          {analysisResults.audience_overlap_percentage?.toFixed(0) || 'N/A'}%
+                        </div>
                         <div className="text-sm text-muted-foreground">Audience Overlap</div>
                       </div>
                       <div className="text-center p-4 bg-primary/5 rounded-lg">
-                        <div className="text-2xl font-bold text-primary">285%</div>
+                        <div className="text-2xl font-bold text-primary">
+                          {analysisResults.roi_projection?.toFixed(0) || 'N/A'}%
+                        </div>
                         <div className="text-sm text-muted-foreground">ROI Projection</div>
                       </div>
                       <div className="text-center p-4 bg-primary/5 rounded-lg">
-                        <div className="text-2xl font-bold text-green-600">Low</div>
+                        <div className={`text-2xl font-bold ${formatRiskLevel(analysisResults.risk_level)}`}>
+                          {analysisResults.risk_level?.charAt(0).toUpperCase() + analysisResults.risk_level?.slice(1) || 'N/A'}
+                        </div>
                         <div className="text-sm text-muted-foreground">Risk Level</div>
                       </div>
                     </div>
 
-                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                      <h4 className="font-semibold text-green-800 mb-2">Recommendation</h4>
-                      <p className="text-sm text-green-700">
-                        This partnership shows excellent potential with strong brand alignment and significant audience overlap. 
-                        Consider proceeding with a co-branding initiative focused on luxury experiences.
-                      </p>
-                    </div>
+                    {analysisResults.recommendations && analysisResults.recommendations.length > 0 && (
+                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <h4 className="font-semibold text-green-800 mb-2">Recommendations</h4>
+                        <ul className="text-sm text-green-700 space-y-1">
+                          {analysisResults.recommendations.map((rec, index) => (
+                            <li key={index}>• {rec}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {analysisResults.key_risks && analysisResults.key_risks.length > 0 && (
+                      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <h4 className="font-semibold text-yellow-800 mb-2">Key Risks</h4>
+                        <ul className="text-sm text-yellow-700 space-y-1">
+                          {analysisResults.key_risks.map((risk, index) => (
+                            <li key={index}>• {risk}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
 
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" className="flex-1">
