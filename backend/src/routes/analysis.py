@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token
+from flask_jwt_extended import create_access_token
 from src.models.user import User, db
 from src.models.analysis import PartnershipScenario, AnalysisJob, AnalysisResult
 from src.services.job_service import JobService
@@ -9,21 +9,16 @@ analysis_bp = Blueprint('analysis', __name__)
 job_service = JobService()
 logger = logging.getLogger(__name__)
 
-# Simple auth for demo - in production, use proper JWT with user registration
 @analysis_bp.route('/auth/demo-login', methods=['POST'])
 def demo_login():
-    """
-    Demo login endpoint - creates or gets demo user
-    """
+    """Demo login endpoint"""
     try:
-        # Get or create demo user
         demo_user = User.query.filter_by(username='demo_user').first()
         if not demo_user:
             demo_user = User(username='demo_user', email='demo@impactlens.com')
             db.session.add(demo_user)
             db.session.commit()
         
-        # Create access token
         access_token = create_access_token(identity=demo_user.id)
         
         return jsonify({
@@ -33,17 +28,12 @@ def demo_login():
         
     except Exception as e:
         logger.error(f"Demo login failed: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return jsonify({"error": f"Login failed: {str(e)}"}), 500
 
 @analysis_bp.route('/scenarios', methods=['POST'])
 def create_scenario():
-    """
-    Create new partnership scenario
-    """
+    """Create new partnership scenario"""
     try:
-        # Use demo user for testing
         demo_user = User.query.filter_by(username='demo_user').first()
         if not demo_user:
             demo_user = User(username='demo_user', email='demo@impactlens.com')
@@ -53,13 +43,11 @@ def create_scenario():
         user_id = demo_user.id
         data = request.get_json()
         
-        # Validate required fields
         required_fields = ['brand_a', 'brand_b', 'partnership_type']
         for field in required_fields:
             if not data.get(field):
                 return jsonify({"error": f"Missing required field: {field}"}), 400
         
-        # Create scenario
         scenario = PartnershipScenario(
             user_id=user_id,
             brand_a=data['brand_a'],
@@ -81,11 +69,8 @@ def create_scenario():
 
 @analysis_bp.route('/scenarios', methods=['GET'])
 def get_scenarios():
-    """
-    Get user's scenarios
-    """
+    """Get user's scenarios"""
     try:
-        # Use demo user for testing
         demo_user = User.query.filter_by(username='demo_user').first()
         if not demo_user:
             return jsonify({"scenarios": []}), 200
@@ -103,18 +88,14 @@ def get_scenarios():
 
 @analysis_bp.route('/scenarios/<int:scenario_id>/analyze', methods=['POST'])
 def analyze_scenario(scenario_id):
-    """
-    Start analysis for a scenario
-    """
+    """Start analysis for a scenario"""
     try:
-        # Use demo user for testing
         demo_user = User.query.filter_by(username='demo_user').first()
         if not demo_user:
             return jsonify({"error": "Demo user not found"}), 404
         
         user_id = demo_user.id
         
-        # Verify scenario ownership
         scenario = PartnershipScenario.query.filter_by(
             id=scenario_id, 
             user_id=user_id
@@ -123,7 +104,6 @@ def analyze_scenario(scenario_id):
         if not scenario:
             return jsonify({"error": "Scenario not found"}), 404
         
-        # Check if analysis is already in progress
         existing_job = AnalysisJob.query.filter_by(
             scenario_id=scenario_id,
             status='processing'
@@ -136,10 +116,8 @@ def analyze_scenario(scenario_id):
                 "status": "processing"
             }), 200
         
-        # Create analysis job
         job_id = job_service.create_analysis_job(scenario_id, user_id)
         
-        # Update scenario status
         scenario.status = 'analyzing'
         db.session.commit()
         
@@ -155,23 +133,18 @@ def analyze_scenario(scenario_id):
 
 @analysis_bp.route('/jobs/<job_id>', methods=['GET'])
 def get_job_status(job_id):
-    """
-    Get analysis job status and results
-    """
+    """Get analysis job status and results"""
     try:
-        # Use demo user for testing
         demo_user = User.query.filter_by(username='demo_user').first()
         if not demo_user:
             return jsonify({"error": "Demo user not found"}), 404
         
         user_id = demo_user.id
         
-        # Verify job ownership
         job = AnalysisJob.query.filter_by(job_id=job_id, user_id=user_id).first()
         if not job:
             return jsonify({"error": "Job not found"}), 404
         
-        # Get job status from service
         job_status = job_service.get_job_status(job_id)
         if not job_status:
             return jsonify({"error": "Job not found"}), 404
@@ -184,9 +157,7 @@ def get_job_status(job_id):
 
 @analysis_bp.route('/partner-suggestions', methods=['POST'])
 def get_partner_suggestions():
-    """
-    Get AI-powered partner suggestions for a brand
-    """
+    """Get AI-powered partner suggestions for a brand"""
     try:
         data = request.get_json()
         brand_name = data.get('brand_name')
