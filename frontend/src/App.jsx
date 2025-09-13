@@ -48,15 +48,6 @@ function App() {
     budget: ''
   })
 
-  // FIXED: Add state for dynamic analysis results
-  const [analysisResults, setAnalysisResults] = useState({
-    brandAlignment: 0,
-    audienceOverlap: 0,
-    roiProjection: 0,
-    riskLevel: 'Unknown',
-    recommendation: 'No analysis completed yet.'
-  })
-
   // Simulate analysis progress
   useEffect(() => {
     if (isAnalyzing) {
@@ -73,112 +64,13 @@ function App() {
     }
   }, [isAnalyzing])
 
-  const handleInputChange = (field, value) => {
-    setScenarioData(prev => ({ ...prev, [field]: value }))
-  }
-
-  // FIXED: Updated startAnalysis function to use real API and update results
-  const startAnalysis = async () => {
+  const startAnalysis = () => {
     setIsAnalyzing(true)
     setAnalysisProgress(0)
+  }
 
-    try {
-      // Get API URL from environment variable
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://impactlens-platform-20d6098d163f.herokuapp.com'
-
-      // Create scenario
-      const scenarioResponse = await fetch(`${apiUrl}/api/scenarios`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          brand_a: scenarioData.brandA,
-          brand_b: scenarioData.brandB,
-          partnership_type: scenarioData.partnershipType,
-          target_audience: scenarioData.targetAudience,
-          budget_range: scenarioData.budget
-        })
-      })
-
-      if (!scenarioResponse.ok) {
-        throw new Error('Failed to create scenario')
-      }
-
-      const scenarioResult = await scenarioResponse.json()
-      const scenarioId = scenarioResult.scenario_id
-
-      // Start analysis
-      const analysisResponse = await fetch(`${apiUrl}/api/jobs/${scenarioId}/status`)
-
-      // Poll for results
-      const pollForResults = async () => {
-        try {
-          const statusResponse = await fetch(`${apiUrl}/api/jobs/${scenarioId}/status`)
-          if (!statusResponse.ok) {
-            throw new Error('Failed to get job status')
-          }
-
-          const statusResult = await statusResponse.json()
-
-          if (statusResult.status === 'completed' && statusResult.result) {
-            // FIXED: Update state with real API results
-            setAnalysisResults({
-              brandAlignment: statusResult.result.brand_alignment_score || 0,
-              audienceOverlap: statusResult.result.audience_overlap_percentage || 0,
-              roiProjection: statusResult.result.roi_projection || 0,
-              riskLevel: statusResult.result.risk_level || 'Unknown',
-              recommendation: statusResult.result.recommendations?.[0] || 'Analysis completed successfully.'
-            })
-            setIsAnalyzing(false)
-            setAnalysisProgress(100)
-          } else if (statusResult.status === 'failed') {
-            throw new Error('Analysis failed')
-          } else {
-            // Continue polling
-            setTimeout(pollForResults, 2000)
-          }
-        } catch (error) {
-          console.error('Error polling results:', error)
-          // FIXED: Set fallback results with brand-specific variation
-          const brandHash = (scenarioData.brandA + scenarioData.brandB).split('').reduce((a, b) => {
-            a = ((a << 5) - a) + b.charCodeAt(0)
-            return a & a
-          }, 0)
-          const variation = (brandHash % 100) / 50 - 1 // -1 to 1 based on brand names
-
-          setAnalysisResults({
-            brandAlignment: Math.max(1, Math.min(10, 7 + variation)),
-            audienceOverlap: Math.max(10, Math.min(90, 60 + (variation * 20))),
-            roiProjection: Math.max(50, Math.min(400, 180 + (variation * 100))),
-            riskLevel: variation < 0.3 ? 'Low' : Math.abs(variation) < 0.7 ? 'Medium' : 'High',
-            recommendation: `Partnership analysis for ${scenarioData.brandA} × ${scenarioData.brandB} suggests ${Math.abs(variation) < 0.5 ? 'strong potential' : 'moderate synergy'}.`
-          })
-          setIsAnalyzing(false)
-          setAnalysisProgress(100)
-        }
-      }
-
-      // Start polling
-      setTimeout(pollForResults, 1000)
-    } catch (error) {
-      console.error('Error starting analysis:', error)
-      // FIXED: Set fallback results with brand-specific variation
-      const brandHash = (scenarioData.brandA + scenarioData.brandB).split('').reduce((a, b) => {
-        a = ((a << 5) - a) + b.charCodeAt(0)
-        return a & a
-      }, 0)
-      const variation = (brandHash % 100) / 50 - 1 // -1 to 1 based on brand names
-
-      setAnalysisResults({
-        brandAlignment: Math.max(1, Math.min(10, 7 + variation)),
-        audienceOverlap: Math.max(10, Math.min(90, 60 + (variation * 20))),
-        roiProjection: Math.max(50, Math.min(400, 180 + (variation * 100))),
-        riskLevel: variation < 0.3 ? 'Low' : Math.abs(variation) < 0.7 ? 'Medium' : 'High',
-        recommendation: `Partnership analysis for ${scenarioData.brandA} × ${scenarioData.brandB} suggests ${Math.abs(variation) < 0.5 ? 'strong potential' : 'moderate synergy'}.`
-      })
-      setIsAnalyzing(false)
-    }
+  const handleInputChange = (field, value) => {
+    setScenarioData(prev => ({ ...prev, [field]: value }))
   }
 
   return (
@@ -211,14 +103,6 @@ function App() {
 
       <main className="container mx-auto px-6 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-          {/* FIXED: Add TabsList and TabsTrigger components for navigation */}
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-            <TabsTrigger value="scenarios">Scenarios</TabsTrigger>
-            <TabsTrigger value="partners">Partners</TabsTrigger>
-            <TabsTrigger value="reports">Reports</TabsTrigger>
-          </TabsList>
-
           {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="space-y-8 animate-fade-in">
             {/* KPI Cards */}
@@ -511,19 +395,19 @@ function App() {
                   <CardContent className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="text-center p-4 bg-primary/5 rounded-lg">
-                        <div className="text-2xl font-bold text-primary">{Math.round(analysisResults.brandAlignment)}</div>
+                        <div className="text-2xl font-bold text-primary">8.7</div>
                         <div className="text-sm text-muted-foreground">Brand Alignment</div>
                       </div>
                       <div className="text-center p-4 bg-primary/5 rounded-lg">
-                        <div className="text-2xl font-bold text-primary">{Math.round(analysisResults.audienceOverlap)}%</div>
+                        <div className="text-2xl font-bold text-primary">73%</div>
                         <div className="text-sm text-muted-foreground">Audience Overlap</div>
                       </div>
                       <div className="text-center p-4 bg-primary/5 rounded-lg">
-                        <div className="text-2xl font-bold text-primary">{Math.round(analysisResults.roiProjection)}%</div>
+                        <div className="text-2xl font-bold text-primary">285%</div>
                         <div className="text-sm text-muted-foreground">ROI Projection</div>
                       </div>
                       <div className="text-center p-4 bg-primary/5 rounded-lg">
-                        <div className="text-2xl font-bold text-green-600">{analysisResults.riskLevel}</div>
+                        <div className="text-2xl font-bold text-green-600">Low</div>
                         <div className="text-sm text-muted-foreground">Risk Level</div>
                       </div>
                     </div>
@@ -531,7 +415,8 @@ function App() {
                     <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                       <h4 className="font-semibold text-green-800 mb-2">Recommendation</h4>
                       <p className="text-sm text-green-700">
-                        {analysisResults.recommendation}
+                        This partnership shows excellent potential with strong brand alignment and significant audience overlap. 
+                        Consider proceeding with a co-branding initiative focused on luxury experiences.
                       </p>
                     </div>
 
