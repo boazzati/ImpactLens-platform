@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import './App.css'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Input } from '@/components/ui/input.jsx'
@@ -9,7 +8,9 @@ import { Badge } from '@/components/ui/badge.jsx'
 import { Progress } from '@/components/ui/progress.jsx'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts'
+import { TrendingUp, Users, Target, DollarSign, Sparkles, BarChart3, PieChart as PieChartIcon, LineChart as LineChartIcon, Download, Share2, Settings, Bell, User, LogOut } from 'lucide-react'
 import impactLensLogo from './assets/impactlens-logojustsymbol.png'
+import './App.css'
 
 // Sample data for charts
 const performanceData = [
@@ -83,7 +84,7 @@ function App() {
 
     try {
       // Get API URL from environment variable
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://impactlens-platform-20d6698d163f.herokuapp.com'
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://impactlens-platform-20d6098d163f.herokuapp.com'
 
       // Create scenario
       const scenarioResponse = await fetch(`${apiUrl}/api/scenarios`, {
@@ -109,12 +110,11 @@ function App() {
 
       // Start analysis
       const analysisResponse = await fetch(`${apiUrl}/api/jobs/${scenarioId}/status`)
-      const jobId = analysisResult.job_id
 
       // Poll for results
       const pollForResults = async () => {
         try {
-          const statusResponse = await fetch(`${apiUrl}/api/jobs/${jobId}/status`)
+          const statusResponse = await fetch(`${apiUrl}/api/jobs/${scenarioId}/status`)
           if (!statusResponse.ok) {
             throw new Error('Failed to get job status')
           }
@@ -141,7 +141,12 @@ function App() {
         } catch (error) {
           console.error('Error polling results:', error)
           // FIXED: Set fallback results with brand-specific variation
-          const variation = Math.random() * 2 - 1 // -1 to 1 based on brand names
+          const brandHash = (scenarioData.brandA + scenarioData.brandB).split('').reduce((a, b) => {
+            a = ((a << 5) - a) + b.charCodeAt(0)
+            return a & a
+          }, 0)
+          const variation = (brandHash % 100) / 50 - 1 // -1 to 1 based on brand names
+
           setAnalysisResults({
             brandAlignment: Math.max(1, Math.min(10, 7 + variation)),
             audienceOverlap: Math.max(10, Math.min(90, 60 + (variation * 20))),
@@ -156,7 +161,6 @@ function App() {
 
       // Start polling
       setTimeout(pollForResults, 1000)
-
     } catch (error) {
       console.error('Error starting analysis:', error)
       // FIXED: Set fallback results with brand-specific variation
@@ -170,11 +174,10 @@ function App() {
         brandAlignment: Math.max(1, Math.min(10, 7 + variation)),
         audienceOverlap: Math.max(10, Math.min(90, 60 + (variation * 20))),
         roiProjection: Math.max(50, Math.min(400, 180 + (variation * 100))),
-        riskLevel: Math.abs(variation) < 0.3 ? 'Low' : Math.abs(variation) < 0.7 ? 'Medium' : 'High',
+        riskLevel: variation < 0.3 ? 'Low' : Math.abs(variation) < 0.7 ? 'Medium' : 'High',
         recommendation: `Partnership analysis for ${scenarioData.brandA} × ${scenarioData.brandB} suggests ${Math.abs(variation) < 0.5 ? 'strong potential' : 'moderate synergy'}.`
       })
       setIsAnalyzing(false)
-      setAnalysisProgress(100)
     }
   }
 
@@ -183,7 +186,7 @@ function App() {
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between space-x-6">
+          <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <img src={impactLensLogo} alt="ImpactLens" className="h-10 w-10" />
               <div>
@@ -192,10 +195,16 @@ function App() {
               </div>
             </div>
             <nav className="hidden md:flex items-center space-x-6">
-              <Button variant="ghost" size="icon" className="h-4 w-4" />
-              <Button variant="ghost" size="icon" className="h-4 w-4" />
-              <Button variant="ghost" size="icon" className="h-4 w-4" />
+              <Button variant="ghost" onClick={() => setActiveTab('dashboard')}>Dashboard</Button>
+              <Button variant="ghost" onClick={() => setActiveTab('scenarios')}>Scenarios</Button>
+              <Button variant="ghost" onClick={() => setActiveTab('partners')}>Partners</Button>
+              <Button variant="ghost" onClick={() => setActiveTab('reports')}>Reports</Button>
             </nav>
+            <div className="flex items-center space-x-3">
+              <Button variant="ghost" size="icon"><Bell className="h-4 w-4" /></Button>
+              <Button variant="ghost" size="icon"><Settings className="h-4 w-4" /></Button>
+              <Button variant="ghost" size="icon"><User className="h-4 w-4" /></Button>
+            </div>
           </div>
         </div>
       </header>
@@ -210,72 +219,88 @@ function App() {
             <TabsTrigger value="reports">Reports</TabsTrigger>
           </TabsList>
 
+          {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="space-y-8 animate-fade-in">
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card className="luxury-shadow hover:lift">
+              <Card className="luxury-shadow hover-lift">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Partnership ROI</CardTitle>
                   <TrendingUp className="h-4 w-4 text-primary" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold impactlens-text-gradient">324%</div>
-                  <p className="text-xs text-muted-foreground">+12.5% vs last quarter</p>
+                  <p className="text-xs text-muted-foreground">
+                    <span className="text-green-600">↑ 12.5%</span> vs last quarter
+                  </p>
                 </CardContent>
               </Card>
 
-              <Card className="luxury-shadow hover:lift">
+              <Card className="luxury-shadow hover-lift">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Brand Reach</CardTitle>
                   <Users className="h-4 w-4 text-primary" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold impactlens-text-gradient">2.4M</div>
-                  <p className="text-xs text-muted-foreground">+18.2% vs last quarter</p>
+                  <p className="text-xs text-muted-foreground">
+                    <span className="text-green-600">↑ 18.2%</span> vs last quarter
+                  </p>
                 </CardContent>
               </Card>
 
-              <Card className="luxury-shadow hover:lift">
+              <Card className="luxury-shadow hover-lift">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Audience Growth</CardTitle>
                   <Target className="h-4 w-4 text-primary" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold impactlens-text-gradient">156K</div>
-                  <p className="text-xs text-muted-foreground">+8.7% vs last quarter</p>
+                  <p className="text-xs text-muted-foreground">
+                    <span className="text-green-600">↑ 8.7%</span> vs last quarter
+                  </p>
                 </CardContent>
               </Card>
 
-              <Card className="luxury-shadow hover:lift">
+              <Card className="luxury-shadow hover-lift">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Sales Impact</CardTitle>
                   <DollarSign className="h-4 w-4 text-primary" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold impactlens-text-gradient">$1.2M</div>
-                  <p className="text-xs text-muted-foreground">+31% vs last quarter</p>
+                  <p className="text-xs text-muted-foreground">
+                    <span className="text-red-600">↓ 3.1%</span> vs last quarter
+                  </p>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <Card className="luxury-shadow">
                 <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
+                  <CardTitle className="flex items-center gap-2">
                     <BarChart3 className="h-5 w-5 text-primary" />
-                    <span>Partnership Performance</span>
+                    Partnership Performance
                   </CardTitle>
                   <CardDescription>Key metrics across partnership dimensions</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={performanceData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="value" fill="#D4AF37" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 12 }} />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'white', 
+                          border: '1px solid #e0e0e0',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                        }} 
+                      />
+                      <Bar dataKey="value" fill="#D4AF37" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -283,9 +308,9 @@ function App() {
 
               <Card className="luxury-shadow">
                 <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <PieChart className="h-5 w-5 text-primary" />
-                    <span>Audience Breakdown</span>
+                  <CardTitle className="flex items-center gap-2">
+                    <PieChartIcon className="h-5 w-5 text-primary" />
+                    Audience Breakdown
                   </CardTitle>
                   <CardDescription>Target audience composition analysis</CardDescription>
                 </CardHeader>
@@ -296,49 +321,115 @@ function App() {
                         data={audienceBreakdown}
                         cx="50%"
                         cy="50%"
-                        labelLine={false}
-                        outerRadius={80}
-                        fill="#8884d8"
+                        innerRadius={60}
+                        outerRadius={120}
+                        paddingAngle={2}
                         dataKey="value"
                       >
                         {audienceBreakdown.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
-                      <Tooltip />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'white', 
+                          border: '1px solid #e0e0e0',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                        }} 
+                      />
                     </PieChart>
                   </ResponsiveContainer>
+                  <div className="flex flex-wrap gap-2 mt-4">
+                    {audienceBreakdown.map((item, index) => (
+                      <Badge key={index} variant="outline" className="text-xs">
+                        <div 
+                          className="w-2 h-2 rounded-full mr-2" 
+                          style={{ backgroundColor: item.color }}
+                        />
+                        {item.name}: {item.value}%
+                      </Badge>
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
             </div>
+
+            {/* ROI Projection */}
+            <Card className="luxury-shadow">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <LineChartIcon className="h-5 w-5 text-primary" />
+                  ROI Projection & Reach Growth
+                </CardTitle>
+                <CardDescription>6-month partnership performance forecast</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={400}>
+                  <LineChart data={roiProjection}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                    <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
+                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #e0e0e0',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                      }} 
+                    />
+                    <Line 
+                      yAxisId="left" 
+                      type="monotone" 
+                      dataKey="roi" 
+                      stroke="#D4AF37" 
+                      strokeWidth={3}
+                      dot={{ fill: '#D4AF37', strokeWidth: 2, r: 6 }}
+                    />
+                    <Line 
+                      yAxisId="right" 
+                      type="monotone" 
+                      dataKey="reach" 
+                      stroke="#B8941F" 
+                      strokeWidth={3}
+                      strokeDasharray="5 5"
+                      dot={{ fill: '#B8941F', strokeWidth: 2, r: 6 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
           </TabsContent>
 
+          {/* Scenarios Tab */}
           <TabsContent value="scenarios" className="space-y-8 animate-fade-in">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Scenario Builder */}
               <Card className="luxury-shadow">
                 <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
+                  <CardTitle className="flex items-center gap-2">
                     <Sparkles className="h-5 w-5 text-primary" />
-                    <span>Partnership Scenario Builder</span>
+                    Partnership Scenario Builder
                   </CardTitle>
                   <CardDescription>Create and analyze new partnership opportunities</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="brandA">Brand A</Label>
-                      <Input
+                      <Input 
                         id="brandA"
-                        placeholder="Enter brand name"
+                        placeholder="Enter first brand name"
                         value={scenarioData.brandA}
                         onChange={(e) => handleInputChange('brandA', e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="brandB">Brand B</Label>
-                      <Input
+                      <Input 
                         id="brandB"
-                        placeholder="Enter brand name"
+                        placeholder="Enter second brand name"
                         value={scenarioData.brandB}
                         onChange={(e) => handleInputChange('brandB', e.target.value)}
                       />
@@ -353,18 +444,17 @@ function App() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="co-branding">Co-Branding</SelectItem>
-                        <SelectItem value="licensing">Licensing Agreement</SelectItem>
-                        <SelectItem value="joint-venture">Joint Venture</SelectItem>
                         <SelectItem value="sponsorship">Sponsorship</SelectItem>
-                        <SelectItem value="product-collaboration">Product Collaboration</SelectItem>
-                        <SelectItem value="event-partnership">Event Partnership</SelectItem>
+                        <SelectItem value="collaboration">Product Collaboration</SelectItem>
+                        <SelectItem value="event">Event Partnership</SelectItem>
+                        <SelectItem value="licensing">Licensing Agreement</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="targetAudience">Target Audience</Label>
-                    <Input
+                    <Input 
                       id="targetAudience"
                       placeholder="Describe target audience"
                       value={scenarioData.targetAudience}
@@ -388,108 +478,112 @@ function App() {
                   </div>
 
                   {isAnalyzing && (
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>AI is analyzing partnership potential...</span>
-                        <span>{Math.round(analysisProgress)}%</span>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label>Analysis Progress</Label>
+                        <span className="text-sm text-muted-foreground">{Math.round(analysisProgress)}%</span>
                       </div>
                       <Progress value={analysisProgress} className="w-full" />
+                      <p className="text-sm text-muted-foreground">AI is analyzing partnership potential...</p>
                     </div>
                   )}
 
                   <Button 
                     onClick={startAnalysis} 
-                    className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
                     disabled={isAnalyzing || !scenarioData.brandA || !scenarioData.brandB}
+                    className="w-full impactlens-gradient hover:opacity-90 transition-opacity"
                   >
                     {isAnalyzing ? 'Analyzing...' : 'Start AI Analysis'}
                   </Button>
                 </CardContent>
               </Card>
 
-              <Card className="luxury-shadow">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Target className="h-5 w-5 text-primary" />
-                    <span>Analysis Results</span>
-                  </CardTitle>
-                  <CardDescription>AI-powered partnership insights</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center p-4 bg-muted/50 rounded-lg">
-                      <div className="text-2xl font-bold text-primary">{analysisResults.brandAlignment.toFixed(1)}</div>
-                      <div className="text-sm text-muted-foreground">Brand Alignment</div>
+              {/* Analysis Results */}
+              {analysisProgress === 100 && (
+                <Card className="luxury-shadow animate-slide-up">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Target className="h-5 w-5 text-primary" />
+                      Analysis Results
+                    </CardTitle>
+                    <CardDescription>AI-powered partnership insights</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="text-center p-4 bg-primary/5 rounded-lg">
+                        <div className="text-2xl font-bold text-primary">{Math.round(analysisResults.brandAlignment)}</div>
+                        <div className="text-sm text-muted-foreground">Brand Alignment</div>
+                      </div>
+                      <div className="text-center p-4 bg-primary/5 rounded-lg">
+                        <div className="text-2xl font-bold text-primary">{Math.round(analysisResults.audienceOverlap)}%</div>
+                        <div className="text-sm text-muted-foreground">Audience Overlap</div>
+                      </div>
+                      <div className="text-center p-4 bg-primary/5 rounded-lg">
+                        <div className="text-2xl font-bold text-primary">{Math.round(analysisResults.roiProjection)}%</div>
+                        <div className="text-sm text-muted-foreground">ROI Projection</div>
+                      </div>
+                      <div className="text-center p-4 bg-primary/5 rounded-lg">
+                        <div className="text-2xl font-bold text-green-600">{analysisResults.riskLevel}</div>
+                        <div className="text-sm text-muted-foreground">Risk Level</div>
+                      </div>
                     </div>
-                    <div className="text-center p-4 bg-muted/50 rounded-lg">
-                      <div className="text-2xl font-bold text-primary">{Math.round(analysisResults.audienceOverlap)}%</div>
-                      <div className="text-sm text-muted-foreground">Audience Overlap</div>
-                    </div>
-                    <div className="text-center p-4 bg-muted/50 rounded-lg">
-                      <div className="text-2xl font-bold text-primary">{Math.round(analysisResults.roiProjection)}%</div>
-                      <div className="text-sm text-muted-foreground">ROI Projection</div>
-                    </div>
-                    <div className="text-center p-4 bg-muted/50 rounded-lg">
-                      <div className="text-2xl font-bold text-green-600">{analysisResults.riskLevel}</div>
-                      <div className="text-sm text-muted-foreground">Risk Level</div>
-                    </div>
-                  </div>
 
-                  <div className="space-y-3">
-                    <h4 className="font-semibold text-green-600">Recommendation</h4>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      {analysisResults.recommendation}
-                    </p>
-                  </div>
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <h4 className="font-semibold text-green-800 mb-2">Recommendation</h4>
+                      <p className="text-sm text-green-700">
+                        {analysisResults.recommendation}
+                      </p>
+                    </div>
 
-                  <div className="flex space-x-3">
-                    <Button variant="outline" className="flex-1">
-                      <Download className="h-4 w-4 mr-2" />
-                      Export Report
-                    </Button>
-                    <Button variant="outline" className="flex-1">
-                      <Share2 className="h-4 w-4 mr-2" />
-                      Share Analysis
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" className="flex-1">
+                        <Download className="h-4 w-4 mr-2" />
+                        Export Report
+                      </Button>
+                      <Button variant="outline" size="sm" className="flex-1">
+                        <Share2 className="h-4 w-4 mr-2" />
+                        Share Analysis
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </TabsContent>
 
-          <TabsContent value="partners" className="space-y-8 animate-fade-in">
+          {/* Partners Tab */}
+          <TabsContent value="partners" className="animate-fade-in">
             <Card className="luxury-shadow">
               <CardHeader>
-                <CardTitle>Partner Network</CardTitle>
-                <CardDescription>Manage and explore potential partnership opportunities</CardDescription>
+                <CardTitle>Partner Directory</CardTitle>
+                <CardDescription>Discover and manage partnership opportunities</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="text-center py-12">
                   <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Partner Management</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Discover, evaluate, and manage your partnership network
+                  <h3 className="text-lg font-semibold mb-2">Partner Discovery Coming Soon</h3>
+                  <p className="text-muted-foreground">
+                    Advanced partner matching and discovery features will be available in the next release.
                   </p>
-                  <Button>Explore Partners</Button>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="reports" className="space-y-8 animate-fade-in">
+          {/* Reports Tab */}
+          <TabsContent value="reports" className="animate-fade-in">
             <Card className="luxury-shadow">
               <CardHeader>
-                <CardTitle>Analytics & Reports</CardTitle>
-                <CardDescription>Comprehensive partnership performance insights</CardDescription>
+                <CardTitle>Reports & Analytics</CardTitle>
+                <CardDescription>Generate comprehensive partnership reports</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="text-center py-12">
-                  <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Advanced Reporting</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Generate detailed reports and analytics for your partnerships
+                  <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Advanced Reporting Coming Soon</h3>
+                  <p className="text-muted-foreground">
+                    Detailed reporting and export capabilities will be available in the next release.
                   </p>
-                  <Button>Generate Report</Button>
                 </div>
               </CardContent>
             </Card>
