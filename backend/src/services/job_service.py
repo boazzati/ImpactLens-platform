@@ -1,9 +1,7 @@
 import uuid
-import threading
 import time
 import logging
-import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, Any, Optional
 from src.models.user import db
 from src.models.analysis import AnalysisJob, AnalysisResult, PartnershipScenario
@@ -12,13 +10,12 @@ logger = logging.getLogger(__name__)
 
 class JobService:
     def __init__(self):
-        self.jobs = {}  # In-memory job tracking
+        self.jobs = {}
     
     def create_analysis_job(self, scenario_id: int, user_id: int) -> str:
         """Create a new analysis job"""
         job_id = str(uuid.uuid4())
         
-        # Create job record
         job = AnalysisJob(
             job_id=job_id,
             scenario_id=scenario_id,
@@ -30,7 +27,7 @@ class JobService:
         db.session.add(job)
         db.session.commit()
         
-        # Process analysis synchronously for demo
+        # Process analysis synchronously
         self._process_analysis_job(job_id)
         
         return job_id
@@ -50,7 +47,6 @@ class JobService:
             'completed_at': job.completed_at.isoformat() if job.completed_at else None
         }
         
-        # Include analysis results if completed
         if job.status == 'completed':
             analysis = AnalysisResult.query.filter_by(job_id=job_id).first()
             if analysis:
@@ -59,12 +55,10 @@ class JobService:
         return result
     
     def _process_analysis_job(self, job_id: str):
-        """Process analysis job - generates unique results based on brand combination"""
+        """Process analysis job synchronously"""
         try:
-            # Update job status
             job = AnalysisJob.query.filter_by(job_id=job_id).first()
             if not job:
-                logger.error(f"Job {job_id} not found")
                 return
             
             job.status = 'processing'
@@ -72,21 +66,18 @@ class JobService:
             job.progress = 10
             db.session.commit()
             
-            # Get scenario details
             scenario = PartnershipScenario.query.get(job.scenario_id)
             if not scenario:
-                logger.error(f"Scenario {job.scenario_id} not found")
                 job.status = 'failed'
                 job.error_message = 'Scenario not found'
                 db.session.commit()
                 return
             
-            # Simulate processing time
             time.sleep(2)
             job.progress = 50
             db.session.commit()
             
-            # Generate unique analysis based on brand combination
+            # Generate unique analysis
             analysis_data = self._generate_analysis(scenario)
             
             time.sleep(3)
@@ -110,13 +101,10 @@ class JobService:
             
             db.session.add(analysis_result)
             
-            # Complete job
             job.status = 'completed'
             job.progress = 100
             job.completed_at = datetime.utcnow()
             db.session.commit()
-            
-            logger.info(f"Analysis job {job_id} completed successfully")
             
         except Exception as e:
             logger.error(f"Analysis job {job_id} failed: {str(e)}")
@@ -127,12 +115,11 @@ class JobService:
                 db.session.commit()
     
     def _generate_analysis(self, scenario: PartnershipScenario) -> Dict[str, Any]:
-        """Generate unique analysis results based on scenario data"""
+        """Generate unique analysis results based on brand combination"""
         
-        # Create a hash-like score based on brand names for consistency
+        # Create deterministic but unique scores based on brand names
         brand_hash = hash(f"{scenario.brand_a.lower()}{scenario.brand_b.lower()}")
         
-        # Generate scores that are deterministic but unique per brand combination
         base_alignment = 5.0 + (abs(brand_hash) % 50) / 10.0  # 5.0 - 10.0
         base_overlap = 30 + (abs(brand_hash) % 50)  # 30 - 80%
         base_roi = 100 + (abs(brand_hash) % 200)  # 100 - 300%
@@ -148,7 +135,6 @@ class JobService:
         
         multiplier = type_multipliers.get(scenario.partnership_type, {'alignment': 1.0, 'overlap': 1.0, 'roi': 1.0})
         
-        # Calculate final scores
         brand_alignment_score = min(10.0, base_alignment * multiplier['alignment'])
         audience_overlap_percentage = min(85.0, base_overlap * multiplier['overlap'])
         roi_projection = base_roi * multiplier['roi']
@@ -161,7 +147,7 @@ class JobService:
         else:
             risk_level = 'high'
         
-        # Generate contextual recommendations and risks
+        # Generate recommendations
         recommendations = []
         key_risks = []
         
@@ -177,19 +163,15 @@ class JobService:
         if audience_overlap_percentage < 30:
             key_risks.append("Low audience overlap may limit cross-promotion effectiveness")
         
-        # Default recommendations if none generated
         if not recommendations:
             recommendations.append("Partnership shows strong potential - proceed with detailed planning")
         
         if not key_risks:
             key_risks.append("Monitor market response and adjust strategy as needed")
         
-        # Generate market insights
         market_insights = {
             "brand_synergy": f"Analysis shows {'strong' if brand_alignment_score >= 8 else 'moderate' if brand_alignment_score >= 6 else 'limited'} synergy between {scenario.brand_a} and {scenario.brand_b}",
-            "audience_analysis": f"Target audience overlap of {audience_overlap_percentage:.0f}% indicates {'excellent' if audience_overlap_percentage >= 70 else 'good' if audience_overlap_percentage >= 50 else 'moderate'} cross-promotion potential",
-            "competitive_landscape": f"Partnership type '{scenario.partnership_type}' is {'well-suited' if multiplier['alignment'] >= 1.0 else 'moderately suited'} for this brand combination",
-            "execution_strategy": f"Recommended budget range {scenario.budget_range} aligns with projected ROI of {roi_projection:.0f}%"
+            "audience_analysis": f"Target audience overlap of {audience_overlap_percentage:.0f}% indicates {'excellent' if audience_overlap_percentage >= 70 else 'good' if audience_overlap_percentage >= 50 else 'moderate'} cross-promotion potential"
         }
         
         return {
