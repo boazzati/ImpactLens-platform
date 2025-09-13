@@ -1,98 +1,70 @@
-import os
-import sys
-from datetime import timedelta
-# DON'T CHANGE THIS !!!
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
-from flask import Flask, send_from_directory
+from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
-
-# Import models and routes
 from src.models.user import db
-from src.models.analysis import PartnershipScenario, AnalysisResult, AnalysisJob
-from src.routes.user import user_bp
 from src.routes.analysis import analysis_bp
+import os
 
-app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
+def create_app():
+    app = Flask(__name__)
+    
+    # Configuration
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'impactlens-secret-key-2024')
+    app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'impactlens-jwt-secret-2024')
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///impactlens.db')
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+    # Fix for Heroku Postgres URL
+    if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgres://'):
+        app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace('postgres://', 'postgresql://', 1)
+    
+    # Initialize extensions
+    db.init_app(app)
+    jwt = JWTManager(app)
+    
+    # CORS configuration
+    CORS(app, origins=[
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://*.vercel.app",
+        "*"
+    ] )
+    
+    # Register blueprints
+    app.register_blueprint(analysis_bp, url_prefix='/api')
+    
+    # Health check endpoint
+    @app.route('/api/health')
+    def health_check():
+        return jsonify({
+            "service": "ImpactLens Partnership Analysis API",
+            "status": "healthy",
+            "version": "1.0.0"
+        })
+    
+    # Root endpoint
+    @app.route('/')
+    def root():
+        return jsonify({
+            "service": "ImpactLens Partnership Analysis API",
+            "status": "running",
+            "endpoints": [
+                "/api/health",
+                "/api/auth/demo-login",
+                "/api/scenarios",
+                "/api/scenarios/<id>/analyze",
+                "/api/jobs/<job_id>"
+            ]
+        })
+    
+    # Create tables
+    with app.app_context():
+        db.create_all()
+    
+    return app
 
-# Configuration
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'impactlens_secret_key_change_in_production')
-app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'impactlens_jwt_secret_key_change_in_production')
-app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
-
-# Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-# Initialize extensions
-CORS(app, origins=["http://localhost:3000", "https://*.vercel.app", "https://*.herokuapp.com"])
-jwt = JWTManager(app)
-db.init_app(app)
-
-# Register blueprints
-app.register_blueprint(user_bp, url_prefix='/api')
-app.register_blueprint(analysis_bp, url_prefix='/api')
-
-# Create database tables
-with app.app_context():
-    db.create_all()
-
-@app.route('/api/health', methods=['GET'])
-def health_check():
-    """Health check endpoint"""
-    return {
-        "status": "healthy",
-        "service": "ImpactLens Partnership Analysis API",
-        "version": "1.0.0"
-    }
-
-@app.route('/', defaults={'path': ''})
-@app.route('/<path:path>')
-def serve(path):
-    """Serve React frontend"""
-    static_folder_path = app.static_folder
-    if static_folder_path is None:
-        return "Static folder not configured", 404
-
-    if path != "" and os.path.exists(os.path.join(static_folder_path, path)):
-        return send_from_directory(static_folder_path, path)
-    else:
-        index_path = os.path.join(static_folder_path, 'index.html')
-        if os.path.exists(index_path):
-            return send_from_directory(static_folder_path, 'index.html')
-        else:
-            return {
-                "message": "ImpactLens API is running",
-                "frontend": "Frontend not deployed - deploy React build to /static folder",
-                "api_docs": "/api/health for health check"
-            }, 200
-
-# Error handlers
-@app.errorhandler(404)
-def not_found(error):
-    return {"error": "Endpoint not found"}, 404
-
-@app.errorhandler(500)
-def internal_error(error):
-    return {"error": "Internal server error"}, 500
-
-@jwt.expired_token_loader
-def expired_token_callback(jwt_header, jwt_payload):
-    return {"error": "Token has expired"}, 401
-
-@jwt.invalid_token_loader
-def invalid_token_callback(error):
-    return {"error": "Invalid token"}, 401
-
-@jwt.unauthorized_loader
-def missing_token_callback(error):
-    return {"error": "Authorization token required"}, 401
+app = create_app()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=os.getenv('FLASK_ENV') == 'development')
+    app.run(host='0.0.0.0', port=port, debug=False)
