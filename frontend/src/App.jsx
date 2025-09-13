@@ -52,7 +52,7 @@ function App() {
   })
 
   // API base URL - will be updated with your Heroku URL
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://impactlens-platform.herokuapp.com'
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://impactlens-platform-20d6698d163f.herokuapp.com'
 
 
   // Poll for job status when analyzing
