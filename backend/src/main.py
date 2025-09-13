@@ -1,8 +1,6 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
-from src.models.user import db
-from src.routes.analysis import analysis_bp
 import os
 
 def create_app():
@@ -18,6 +16,10 @@ def create_app():
     if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgres://'):
         app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace('postgres://', 'postgresql://', 1)
     
+    # Import models FIRST (before initializing db)
+    from src.models.user import db, User
+    from src.models.analysis import PartnershipScenario, AnalysisJob, AnalysisResult
+    
     # Initialize extensions
     db.init_app(app)
     jwt = JWTManager(app)
@@ -30,7 +32,8 @@ def create_app():
         "*"
     ] )
     
-    # Register blueprints
+    # Import and register blueprints
+    from src.routes.analysis import analysis_bp
     app.register_blueprint(analysis_bp, url_prefix='/api')
     
     # Health check endpoint
@@ -57,9 +60,13 @@ def create_app():
             ]
         })
     
-    # Create tables
+    # Create tables - models are already imported above
     with app.app_context():
-        db.create_all()
+        try:
+            db.create_all()
+            print("✅ Database tables created successfully")
+        except Exception as e:
+            print(f"❌ Database creation failed: {e}")
     
     return app
 
