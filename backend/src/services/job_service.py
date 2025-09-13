@@ -1,6 +1,6 @@
 import uuid
 import json
-import asyncio
+import threading
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class JobService:
     def __init__(self):
         self.openai_service = OpenAIService()
-    
+
     def create_analysis_job(self, scenario_id: int, user_id: int) -> str:
         """
         Create async analysis job and return job ID
@@ -31,11 +31,13 @@ class JobService:
         db.session.add(job)
         db.session.commit()
         
-        # Start background processing
-        asyncio.create_task(self._process_analysis_job(job_id))
+        # Start background processing using threading instead of asyncio
+        thread = threading.Thread(target=self._process_analysis_job, args=(job_id,))
+        thread.daemon = True
+        thread.start()
         
         return job_id
-    
+
     def get_job_status(self, job_id: str) -> Optional[Dict[str, Any]]:
         """
         Get current job status and results
@@ -43,7 +45,7 @@ class JobService:
         job = AnalysisJob.query.filter_by(job_id=job_id).first()
         if not job:
             return None
-        
+            
         result = {
             "job_id": job_id,
             "status": job.status,
@@ -55,117 +57,97 @@ class JobService:
         
         if job.error_message:
             result["error"] = job.error_message
-        
+            
         # If completed, include analysis results
         if job.status == 'completed':
             analysis_result = AnalysisResult.query.filter_by(job_id=job_id).first()
             if analysis_result:
                 result["analysis"] = analysis_result.to_dict()
-        
+                
         return result
-    
-    async def _process_analysis_job(self, job_id: str):
+
+    def _process_analysis_job(self, job_id: str):
         """
-        Background worker to process analysis jobs
+        Background worker to process analysis jobs (now synchronous)
         """
         try:
-            # Get job and scenario data
+            logger.info(f"Starting analysis job {job_id}")
+            
+            # Update job status to running
             job = AnalysisJob.query.filter_by(job_id=job_id).first()
             if not job:
                 logger.error(f"Job {job_id} not found")
                 return
+                
+            job.status = 'running'
+            job.started_at = datetime.utcnow()
+            job.progress = 10
+            db.session.commit()
             
+            # Get scenario data
             scenario = PartnershipScenario.query.get(job.scenario_id)
             if not scenario:
-                logger.error(f"Scenario {job.scenario_id} not found")
-                self._update_job_status(job_id, 'failed', error="Scenario not found")
+                self._mark_job_failed(job_id, "Scenario not found")
                 return
-            
-            # Update job status
-            self._update_job_status(job_id, 'processing', progress=10)
-            
-            # Prepare scenario data for analysis
-            scenario_data = {
-                'brand_a': scenario.brand_a,
-                'brand_b': scenario.brand_b,
-                'partnership_type': scenario.partnership_type,
-                'target_audience': scenario.target_audience,
-                'budget_range': scenario.budget_range
-            }
-            
+                
             # Update progress
-            self._update_job_status(job_id, 'processing', progress=30)
+            job.progress = 30
+            db.session.commit()
             
             # Perform OpenAI analysis
-            analysis_response = await self.openai_service.analyze_partnership(scenario_data)
-            
-            if analysis_response["status"] == "error":
-                self._update_job_status(job_id, 'failed', error=analysis_response["error"])
-                return
+            logger.info(f"Calling OpenAI for job {job_id}")
+            analysis_data = self.openai_service.analyze_partnership(
+                brand_a=scenario.brand_a,
+                brand_b=scenario.brand_b,
+                partnership_type=scenario.partnership_type,
+                target_audience=scenario.target_audience,
+                budget_range=scenario.budget_range
+            )
             
             # Update progress
-            self._update_job_status(job_id, 'processing', progress=80)
+            job.progress = 80
+            db.session.commit()
             
             # Save analysis results
-            analysis_data = analysis_response["analysis"]
-            
             analysis_result = AnalysisResult(
-                scenario_id=scenario.id,
                 job_id=job_id,
-                brand_alignment_score=analysis_data["brand_alignment_score"],
-                audience_overlap_percentage=analysis_data["audience_overlap_percentage"],
-                roi_projection=analysis_data["roi_projection"],
-                risk_level=analysis_data["risk_level"],
-                key_risks=json.dumps(analysis_data["key_risks"]),
-                recommendations=json.dumps(analysis_data["recommendations"]),
-                market_insights=json.dumps(analysis_data["market_insights"]),
-                tokens_used=analysis_response.get("tokens_used", 0),
-                analysis_duration=analysis_response.get("analysis_duration", 0)
+                scenario_id=job.scenario_id,
+                brand_alignment_score=analysis_data.get('brand_alignment_score', 0.0),
+                audience_overlap=analysis_data.get('audience_overlap', 0.0),
+                roi_projection=analysis_data.get('roi_projection', 0.0),
+                risk_level=analysis_data.get('risk_level', 'medium'),
+                recommendation=analysis_data.get('recommendation', ''),
+                detailed_analysis=json.dumps(analysis_data.get('detailed_analysis', {})),
+                market_insights=json.dumps(analysis_data.get('market_insights', {}))
             )
             
             db.session.add(analysis_result)
             
-            # Update scenario status
-            scenario.status = 'completed'
-            scenario.updated_at = datetime.utcnow()
-            
-            # Complete job
-            self._update_job_status(job_id, 'completed', progress=100)
-            
+            # Mark job as completed
+            job.status = 'completed'
+            job.progress = 100
+            job.completed_at = datetime.utcnow()
             db.session.commit()
             
             logger.info(f"Analysis job {job_id} completed successfully")
             
         except Exception as e:
-            logger.error(f"Analysis job {job_id} failed: {str(e)}")
-            self._update_job_status(job_id, 'failed', error=str(e))
+            logger.error(f"Error processing job {job_id}: {str(e)}")
+            self._mark_job_failed(job_id, str(e))
     
-    def _update_job_status(self, job_id: str, status: str, progress: int = None, error: str = None):
+    def _mark_job_failed(self, job_id: str, error_message: str):
         """
-        Update job status and progress
+        Mark job as failed with error message
         """
         try:
             job = AnalysisJob.query.filter_by(job_id=job_id).first()
-            if not job:
-                return
-            
-            job.status = status
-            
-            if progress is not None:
-                job.progress = progress
-            
-            if error:
-                job.error_message = error
-            
-            if status == 'processing' and not job.started_at:
-                job.started_at = datetime.utcnow()
-            elif status in ['completed', 'failed']:
+            if job:
+                job.status = 'failed'
+                job.error_message = error_message
                 job.completed_at = datetime.utcnow()
-            
-            db.session.commit()
-            
+                db.session.commit()
         except Exception as e:
-            logger.error(f"Failed to update job status: {str(e)}")
+            logger.error(f"Error marking job {job_id} as failed: {str(e)}")
     
     def cleanup_old_jobs(self, days_old: int = 7):
         """
@@ -173,7 +155,6 @@ class JobService:
         """
         try:
             cutoff_date = datetime.utcnow() - timedelta(days=days_old)
-            
             old_jobs = AnalysisJob.query.filter(
                 AnalysisJob.completed_at < cutoff_date,
                 AnalysisJob.status.in_(['completed', 'failed'])
@@ -188,5 +169,5 @@ class JobService:
             logger.info(f"Cleaned up {len(old_jobs)} old jobs")
             
         except Exception as e:
-            logger.error(f"Job cleanup failed: {str(e)}")
+            logger.error(f"Error cleaning up old jobs: {str(e)}")
             db.session.rollback()
