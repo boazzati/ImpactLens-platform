@@ -1,32 +1,30 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.models.user import db
+from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token
+from src.models.user import User, db
 from src.models.analysis import PartnershipScenario, AnalysisJob, AnalysisResult
 from src.services.job_service import JobService
 import logging
-import time
-import uuid
-
-logger = logging.getLogger(__name__)
 
 analysis_bp = Blueprint('analysis', __name__)
 job_service = JobService()
+logger = logging.getLogger(__name__)
 
-@analysis_bp.route('/auth/demo-login', methods=['GET'])
+# Simple auth for demo - in production, use proper JWT with user registration
+@analysis_bp.route('/auth/demo-login', methods=['POST'])
 def demo_login():
-    """Demo login endpoint for testing"""
+    """
+    Demo login endpoint - creates or gets demo user
+    """
     try:
-        # Create or get demo user
-        from src.models.user import User
-        demo_user = User.query.filter_by(username='demo').first()
+        # Get or create demo user
+        demo_user = User.query.filter_by(username='demo_user').first()
         if not demo_user:
-            demo_user = User(username='demo', email='demo@impactlens.com')
+            demo_user = User(username='demo_user', email='demo@impactlens.com')
             db.session.add(demo_user)
             db.session.commit()
         
-        # Generate access token
-        from flask_jwt_extended import create_access_token
-        access_token = create_access_token(identity=demo_user.to_dict())
+        # Create access token
+        access_token = create_access_token(identity=demo_user.id)
         
         return jsonify({
             "access_token": access_token,
@@ -35,32 +33,37 @@ def demo_login():
         
     except Exception as e:
         logger.error(f"Demo login failed: {str(e)}")
-        return jsonify({"error": "Login failed"}), 500
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Login failed: {str(e)}"}), 500
 
 @analysis_bp.route('/scenarios', methods=['POST'])
-@jwt_required()
 def create_scenario():
     """
-    Create new partnership scenario - ALWAYS GENERATES FRESH RESULTS
+    Create new partnership scenario
     """
     try:
-        user_id = get_jwt_identity()
+        # Use demo user for testing
+        demo_user = User.query.filter_by(username='demo_user').first()
+        if not demo_user:
+            demo_user = User(username='demo_user', email='demo@impactlens.com')
+            db.session.add(demo_user)
+            db.session.commit()
+        
+        user_id = demo_user.id
         data = request.get_json()
         
         # Validate required fields
         required_fields = ['brand_a', 'brand_b', 'partnership_type']
-        if not all(field in data for field in required_fields):
-            return jsonify({
-                "error": "Missing required fields",
-                "required": required_fields
-            }), 400
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({"error": f"Missing required field: {field}"}), 400
         
-        # Create scenario with UNIQUE IDENTIFIER to force fresh analysis
-        unique_suffix = f"_{int(time.time())}_{str(uuid.uuid4())[:8]}"
+        # Create scenario
         scenario = PartnershipScenario(
             user_id=user_id,
-            brand_a=data['brand_a'] + unique_suffix,  # Make it unique
-            brand_b=data['brand_b'] + unique_suffix,  # Make it unique
+            brand_a=data['brand_a'],
+            brand_b=data['brand_b'],
             partnership_type=data['partnership_type'],
             target_audience=data.get('target_audience', ''),
             budget_range=data.get('budget_range', ''),
@@ -77,77 +80,63 @@ def create_scenario():
         return jsonify({"error": "Internal server error"}), 500
 
 @analysis_bp.route('/scenarios', methods=['GET'])
-@jwt_required()
 def get_scenarios():
     """
     Get user's scenarios
     """
     try:
-        user_id = get_jwt_identity()
-        scenarios = PartnershipScenario.query.filter_by(user_id=user_id).order_by(
-            PartnershipScenario.created_at.desc()
-        ).all()
+        # Use demo user for testing
+        demo_user = User.query.filter_by(username='demo_user').first()
+        if not demo_user:
+            return jsonify({"scenarios": []}), 200
         
-        return jsonify([scenario.to_dict() for scenario in scenarios]), 200
+        user_id = demo_user.id
         
-    except Exception as e:
-        logger.error(f"Scenarios retrieval failed: {str(e)}")
-        return jsonify({"error": "Internal server error"}), 500
-
-@analysis_bp.route('/scenarios/<int:scenario_id>', methods=['GET'])
-@jwt_required()
-def get_scenario(scenario_id):
-    """
-    Get specific scenario
-    """
-    try:
-        user_id = get_jwt_identity()
-        scenario = PartnershipScenario.query.filter_by(
-            id=scenario_id,
-            user_id=user_id
-        ).first()
-        
-        if not scenario:
-            return jsonify({"error": "Scenario not found"}), 404
-        
-        return jsonify(scenario.to_dict()), 200
+        scenarios = PartnershipScenario.query.filter_by(user_id=user_id).all()
+        return jsonify({
+            "scenarios": [scenario.to_dict() for scenario in scenarios]
+        }), 200
         
     except Exception as e:
         logger.error(f"Scenario retrieval failed: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
 
 @analysis_bp.route('/scenarios/<int:scenario_id>/analyze', methods=['POST'])
-@jwt_required()
 def analyze_scenario(scenario_id):
     """
-    Start analysis for a scenario - ALWAYS CREATES NEW ANALYSIS
+    Start analysis for a scenario
     """
     try:
-        user_id = get_jwt_identity()
+        # Use demo user for testing
+        demo_user = User.query.filter_by(username='demo_user').first()
+        if not demo_user:
+            return jsonify({"error": "Demo user not found"}), 404
+        
+        user_id = demo_user.id
         
         # Verify scenario ownership
         scenario = PartnershipScenario.query.filter_by(
-            id=scenario_id,
+            id=scenario_id, 
             user_id=user_id
         ).first()
         
         if not scenario:
             return jsonify({"error": "Scenario not found"}), 404
         
-        # ALWAYS CREATE NEW ANALYSIS JOB - NO CACHING
-        # Delete any existing jobs for this scenario to force fresh analysis
-        existing_jobs = AnalysisJob.query.filter_by(scenario_id=scenario_id).all()
-        for job in existing_jobs:
-            db.session.delete(job)
+        # Check if analysis is already in progress
+        existing_job = AnalysisJob.query.filter_by(
+            scenario_id=scenario_id,
+            status='processing'
+        ).first()
         
-        # Delete any existing results to force fresh analysis
-        existing_results = AnalysisResult.query.filter_by(scenario_id=scenario_id).all()
-        for result in existing_results:
-            db.session.delete(result)
+        if existing_job:
+            return jsonify({
+                "job_id": existing_job.job_id,
+                "message": "Analysis already in progress",
+                "status": "processing"
+            }), 200
         
-        db.session.commit()
-        
-        # Create fresh analysis job with unique identifier
+        # Create analysis job
         job_id = job_service.create_analysis_job(scenario_id, user_id)
         
         # Update scenario status
@@ -156,77 +145,66 @@ def analyze_scenario(scenario_id):
         
         return jsonify({
             "job_id": job_id,
-            "status": "started",
-            "message": "Fresh analysis started"
+            "message": "Analysis job created successfully",
+            "status": "pending"
         }), 200
         
     except Exception as e:
-        logger.error(f"Analysis start failed: {str(e)}")
+        logger.error(f"Analysis creation failed: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
 
-@analysis_bp.route('/jobs/<job_id>/status', methods=['GET'])
-@jwt_required()
+@analysis_bp.route('/jobs/<job_id>', methods=['GET'])
 def get_job_status(job_id):
     """
-    Get analysis job status
+    Get analysis job status and results
     """
     try:
-        user_id = get_jwt_identity()
+        # Use demo user for testing
+        demo_user = User.query.filter_by(username='demo_user').first()
+        if not demo_user:
+            return jsonify({"error": "Demo user not found"}), 404
         
-        # Get job status
-        status = job_service.get_job_status(job_id)
+        user_id = demo_user.id
         
-        if status['status'] == 'completed':
-            # Get the analysis result
-            job = AnalysisJob.query.filter_by(job_id=job_id).first()
-            if job:
-                result = AnalysisResult.query.filter_by(scenario_id=job.scenario_id).first()
-                if result:
-                    status['analysis'] = result.to_dict()
+        # Verify job ownership
+        job = AnalysisJob.query.filter_by(job_id=job_id, user_id=user_id).first()
+        if not job:
+            return jsonify({"error": "Job not found"}), 404
         
-        return jsonify(status), 200
+        # Get job status from service
+        job_status = job_service.get_job_status(job_id)
+        if not job_status:
+            return jsonify({"error": "Job not found"}), 404
+        
+        return jsonify(job_status), 200
         
     except Exception as e:
-        logger.error(f"Job status check failed: {str(e)}")
+        logger.error(f"Job status retrieval failed: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
 
-@analysis_bp.route('/scenarios/<int:scenario_id>/results', methods=['GET'])
-@jwt_required()
-def get_analysis_results(scenario_id):
+@analysis_bp.route('/partner-suggestions', methods=['POST'])
+def get_partner_suggestions():
     """
-    Get analysis results for a scenario
+    Get AI-powered partner suggestions for a brand
     """
     try:
-        user_id = get_jwt_identity()
+        data = request.get_json()
+        brand_name = data.get('brand_name')
+        industry = data.get('industry', '')
         
-        # Verify scenario ownership
-        scenario = PartnershipScenario.query.filter_by(
-            id=scenario_id,
-            user_id=user_id
-        ).first()
+        if not brand_name:
+            return jsonify({"error": "Brand name is required"}), 400
         
-        if not scenario:
-            return jsonify({"error": "Scenario not found"}), 404
-        
-        # Get latest analysis result
-        result = AnalysisResult.query.filter_by(scenario_id=scenario_id).order_by(
-            AnalysisResult.created_at.desc()
-        ).first()
-        
-        if not result:
-            return jsonify({"error": "No analysis results found"}), 404
-        
-        return jsonify(result.to_dict()), 200
+        # Mock suggestions for now
+        suggestions = {
+            "suggestions": [
+                {"brand": f"Partner A for {brand_name}", "score": 85, "reason": "Strong brand alignment"},
+                {"brand": f"Partner B for {brand_name}", "score": 78, "reason": "Complementary audience"},
+                {"brand": f"Partner C for {brand_name}", "score": 72, "reason": "Market synergy"}
+            ]
+        }
+        return jsonify(suggestions), 200
         
     except Exception as e:
-        logger.error(f"Results retrieval failed: {str(e)}")
+        logger.error(f"Partner suggestions failed: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
-
-@analysis_bp.route('/health', methods=['GET'])
-def health_check():
-    """Health check endpoint"""
-    return jsonify({
-        "status": "healthy",
-        "service": "ImpactLens Partnership Analysis API",
-        "version": "1.0.0"
-    }), 200
