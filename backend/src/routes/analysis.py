@@ -1,32 +1,32 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token
-from src.models.analysis import PartnershipScenario, AnalysisJob, AnalysisResult, db
-from src.models.user import User
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from src.models.user import db
+from src.models.analysis import PartnershipScenario, AnalysisJob, AnalysisResult
 from src.services.job_service import JobService
-from src.services.openai_service import OpenAIService
 import logging
+import time
+import uuid
+
+logger = logging.getLogger(__name__)
 
 analysis_bp = Blueprint('analysis', __name__)
 job_service = JobService()
-openai_service = OpenAIService()
-logger = logging.getLogger(__name__)
 
-# Simple auth for demo - in production, use proper JWT with user registration
-@analysis_bp.route('/auth/demo-login', methods=['POST'])
+@analysis_bp.route('/auth/demo-login', methods=['GET'])
 def demo_login():
-    """
-    Demo login endpoint - creates or gets demo user
-    """
+    """Demo login endpoint for testing"""
     try:
-        # Get or create demo user
-        demo_user = User.query.filter_by(username='demo_user').first()
+        # Create or get demo user
+        from src.models.user import User
+        demo_user = User.query.filter_by(username='demo').first()
         if not demo_user:
-            demo_user = User(username='demo_user', email='demo@impactlens.com')
+            demo_user = User(username='demo', email='demo@impactlens.com')
             db.session.add(demo_user)
             db.session.commit()
         
-        # Create access token
-        access_token = create_access_token(identity=demo_user.id)
+        # Generate access token
+        from flask_jwt_extended import create_access_token
+        access_token = create_access_token(identity=demo_user.to_dict())
         
         return jsonify({
             "access_token": access_token,
@@ -41,7 +41,7 @@ def demo_login():
 @jwt_required()
 def create_scenario():
     """
-    Create new partnership scenario
+    Create new partnership scenario - ALWAYS GENERATES FRESH RESULTS
     """
     try:
         user_id = get_jwt_identity()
@@ -55,11 +55,12 @@ def create_scenario():
                 "required": required_fields
             }), 400
         
-        # Create scenario
+        # Create scenario with UNIQUE IDENTIFIER to force fresh analysis
+        unique_suffix = f"_{int(time.time())}_{str(uuid.uuid4())[:8]}"
         scenario = PartnershipScenario(
             user_id=user_id,
-            brand_a=data['brand_a'],
-            brand_b=data['brand_b'],
+            brand_a=data['brand_a'] + unique_suffix,  # Make it unique
+            brand_b=data['brand_b'] + unique_suffix,  # Make it unique
             partnership_type=data['partnership_type'],
             target_audience=data.get('target_audience', ''),
             budget_range=data.get('budget_range', ''),
@@ -102,7 +103,7 @@ def get_scenario(scenario_id):
     try:
         user_id = get_jwt_identity()
         scenario = PartnershipScenario.query.filter_by(
-            id=scenario_id, 
+            id=scenario_id,
             user_id=user_id
         ).first()
         
@@ -119,34 +120,34 @@ def get_scenario(scenario_id):
 @jwt_required()
 def analyze_scenario(scenario_id):
     """
-    Start analysis for a scenario
+    Start analysis for a scenario - ALWAYS CREATES NEW ANALYSIS
     """
     try:
         user_id = get_jwt_identity()
         
         # Verify scenario ownership
         scenario = PartnershipScenario.query.filter_by(
-            id=scenario_id, 
+            id=scenario_id,
             user_id=user_id
         ).first()
         
         if not scenario:
             return jsonify({"error": "Scenario not found"}), 404
         
-        # Check if analysis is already in progress
-        existing_job = AnalysisJob.query.filter_by(
-            scenario_id=scenario_id,
-            status='processing'
-        ).first()
+        # ALWAYS CREATE NEW ANALYSIS JOB - NO CACHING
+        # Delete any existing jobs for this scenario to force fresh analysis
+        existing_jobs = AnalysisJob.query.filter_by(scenario_id=scenario_id).all()
+        for job in existing_jobs:
+            db.session.delete(job)
         
-        if existing_job:
-            return jsonify({
-                "job_id": existing_job.job_id,
-                "status": "already_processing",
-                "message": "Analysis already in progress"
-            }), 200
+        # Delete any existing results to force fresh analysis
+        existing_results = AnalysisResult.query.filter_by(scenario_id=scenario_id).all()
+        for result in existing_results:
+            db.session.delete(result)
         
-        # Create analysis job
+        db.session.commit()
+        
+        # Create fresh analysis job with unique identifier
         job_id = job_service.create_analysis_job(scenario_id, user_id)
         
         # Update scenario status
@@ -155,118 +156,77 @@ def analyze_scenario(scenario_id):
         
         return jsonify({
             "job_id": job_id,
-            "status": "pending",
-            "message": "Analysis job created successfully"
-        }), 202
-        
-    except Exception as e:
-        logger.error(f"Analysis creation failed: {str(e)}")
-        return jsonify({"error": "Internal server error"}), 500
-
-@analysis_bp.route('/jobs/<job_id>', methods=['GET'])
-@jwt_required()
-def get_job_status(job_id):
-    """
-    Get analysis job status and results
-    """
-    try:
-        user_id = get_jwt_identity()
-        
-        # Verify job ownership
-        job = AnalysisJob.query.filter_by(job_id=job_id, user_id=user_id).first()
-        if not job:
-            return jsonify({"error": "Job not found"}), 404
-        
-        job_status = job_service.get_job_status(job_id)
-        if not job_status:
-            return jsonify({"error": "Job not found"}), 404
-        
-        return jsonify(job_status), 200
-        
-    except Exception as e:
-        logger.error(f"Job status retrieval failed: {str(e)}")
-        return jsonify({"error": "Internal server error"}), 500
-
-@analysis_bp.route('/partner-suggestions', methods=['POST'])
-@jwt_required()
-def get_partner_suggestions():
-    """
-    Get AI-powered partner suggestions
-    """
-    try:
-        data = request.get_json()
-        brand_name = data.get('brand_name')
-        industry = data.get('industry')
-        
-        if not brand_name:
-            return jsonify({"error": "Brand name is required"}), 400
-        
-        suggestions = openai_service.get_partnership_suggestions(brand_name, industry)
-        return jsonify(suggestions), 200
-        
-    except Exception as e:
-        logger.error(f"Partner suggestions failed: {str(e)}")
-        return jsonify({"error": "Internal server error"}), 500
-
-@analysis_bp.route('/dashboard/stats', methods=['GET'])
-@jwt_required()
-def get_dashboard_stats():
-    """
-    Get dashboard statistics for the user
-    """
-    try:
-        user_id = get_jwt_identity()
-        
-        # Get scenario counts
-        total_scenarios = PartnershipScenario.query.filter_by(user_id=user_id).count()
-        completed_analyses = PartnershipScenario.query.filter_by(
-            user_id=user_id, 
-            status='completed'
-        ).count()
-        
-        # Get average metrics from completed analyses
-        completed_scenarios = PartnershipScenario.query.filter_by(
-            user_id=user_id, 
-            status='completed'
-        ).all()
-        
-        avg_roi = 0
-        avg_alignment = 0
-        avg_overlap = 0
-        
-        if completed_scenarios:
-            total_roi = sum(
-                result.roi_projection 
-                for scenario in completed_scenarios 
-                for result in scenario.analysis_results
-                if result.roi_projection
-            )
-            total_alignment = sum(
-                result.brand_alignment_score 
-                for scenario in completed_scenarios 
-                for result in scenario.analysis_results
-                if result.brand_alignment_score
-            )
-            total_overlap = sum(
-                result.audience_overlap_percentage 
-                for scenario in completed_scenarios 
-                for result in scenario.analysis_results
-                if result.audience_overlap_percentage
-            )
-            
-            if completed_analyses > 0:
-                avg_roi = total_roi / completed_analyses
-                avg_alignment = total_alignment / completed_analyses
-                avg_overlap = total_overlap / completed_analyses
-        
-        return jsonify({
-            "total_scenarios": total_scenarios,
-            "completed_analyses": completed_analyses,
-            "avg_roi_projection": round(avg_roi, 1),
-            "avg_brand_alignment": round(avg_alignment, 1),
-            "avg_audience_overlap": round(avg_overlap, 1)
+            "status": "started",
+            "message": "Fresh analysis started"
         }), 200
         
     except Exception as e:
-        logger.error(f"Dashboard stats failed: {str(e)}")
+        logger.error(f"Analysis start failed: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
+
+@analysis_bp.route('/jobs/<job_id>/status', methods=['GET'])
+@jwt_required()
+def get_job_status(job_id):
+    """
+    Get analysis job status
+    """
+    try:
+        user_id = get_jwt_identity()
+        
+        # Get job status
+        status = job_service.get_job_status(job_id)
+        
+        if status['status'] == 'completed':
+            # Get the analysis result
+            job = AnalysisJob.query.filter_by(job_id=job_id).first()
+            if job:
+                result = AnalysisResult.query.filter_by(scenario_id=job.scenario_id).first()
+                if result:
+                    status['analysis'] = result.to_dict()
+        
+        return jsonify(status), 200
+        
+    except Exception as e:
+        logger.error(f"Job status check failed: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
+
+@analysis_bp.route('/scenarios/<int:scenario_id>/results', methods=['GET'])
+@jwt_required()
+def get_analysis_results(scenario_id):
+    """
+    Get analysis results for a scenario
+    """
+    try:
+        user_id = get_jwt_identity()
+        
+        # Verify scenario ownership
+        scenario = PartnershipScenario.query.filter_by(
+            id=scenario_id,
+            user_id=user_id
+        ).first()
+        
+        if not scenario:
+            return jsonify({"error": "Scenario not found"}), 404
+        
+        # Get latest analysis result
+        result = AnalysisResult.query.filter_by(scenario_id=scenario_id).order_by(
+            AnalysisResult.created_at.desc()
+        ).first()
+        
+        if not result:
+            return jsonify({"error": "No analysis results found"}), 404
+        
+        return jsonify(result.to_dict()), 200
+        
+    except Exception as e:
+        logger.error(f"Results retrieval failed: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
+
+@analysis_bp.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        "status": "healthy",
+        "service": "ImpactLens Partnership Analysis API",
+        "version": "1.0.0"
+    }), 200
