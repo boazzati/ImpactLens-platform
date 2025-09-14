@@ -21,8 +21,9 @@ from routes.analysis import analysis_bp
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
 
 # Configuration
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'impactlens_secret_key_change_in_production')
-app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'impactlens_jwt_secret_key_change_in_production')
+SECRET_KEY = os.getenv('SECRET_KEY', 'impactlens_secret_key_2024')
+app.config['SECRET_KEY'] = SECRET_KEY
+app.config['JWT_SECRET_KEY'] = SECRET_KEY  # Use same key for consistency
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
 
 # Database configuration

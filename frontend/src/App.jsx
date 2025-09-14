@@ -439,11 +439,13 @@ function App() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                   >
                     <option value="">Select partnership type</option>
+                    <option value="Product Collaboration">Product Collaboration</option>
                     <option value="Co-branding">Co-branding</option>
                     <option value="Sponsorship">Sponsorship</option>
-                    <option value="Joint Venture">Joint Venture</option>
-                    <option value="Licensing">Licensing</option>
-                    <option value="Distribution Partnership">Distribution Partnership</option>
+                    <option value="Event Partnership">Event Partnership</option>
+                    <option value="Licensing Agreement">Licensing Agreement</option>
+                    <option value="Joint Marketing">Joint Marketing</option>
+                    <option value="Strategic Alliance">Strategic Alliance</option>
                   </select>
                 </div>
 
