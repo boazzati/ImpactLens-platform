@@ -42,7 +42,17 @@ def create_app():
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
     # --- Initialize Extensions ---
-    CORS(app, origins=["http://localhost:3000", "http://localhost:5173", "https://*.vercel.app", "https://*.herokuapp.com"], supports_credentials=True)
+    # Fix CORS to include the specific Vercel domain
+    cors_origins = [
+        "http://localhost:3000", 
+        "http://localhost:5173", 
+        "https://*.vercel.app", 
+        "https://*.herokuapp.com",
+        "https://impact-lens-platform-git-main-halims-projects-7eb5293f.vercel.app"
+    ]
+    CORS(app, origins=cors_origins, supports_credentials=True)
+    logging.info(f"CORS configured for origins: {cors_origins}")
+    
     jwt = JWTManager(app)
     db.init_app(app)
 
@@ -88,9 +98,10 @@ def create_app():
         return {
             "status": "healthy", 
             "service": "ImpactLens API", 
-            "version": "2.4.0",
+            "version": "2.5.0",
             "database": "PostgreSQL" if os.getenv("DATABASE_URL") else "SQLite",
-            "openai_available": hasattr(openai_service, 'openai_service') and openai_service.openai_service is not None
+            "openai_available": hasattr(openai_service, 'openai_service') and openai_service.openai_service is not None,
+            "cors_origins": cors_origins
         }
 
     @app.route("/", defaults={"path": ""})
