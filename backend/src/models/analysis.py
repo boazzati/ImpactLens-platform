@@ -1,8 +1,6 @@
-from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import json
-
-db = SQLAlchemy()
+from .user import db
 
 class PartnershipScenario(db.Model):
     __tablename__ = 'partnership_scenarios'

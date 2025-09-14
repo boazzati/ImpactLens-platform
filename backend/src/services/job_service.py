@@ -31,8 +31,11 @@ class JobService:
         db.session.add(job)
         db.session.commit()
         
-        # Start background processing
-        asyncio.create_task(self._process_analysis_job(job_id))
+        # Start background processing (run in thread to avoid blocking)
+        import threading
+        thread = threading.Thread(target=self._run_async_job, args=(job_id,))
+        thread.daemon = True
+        thread.start()
         
         return job_id
     
@@ -63,6 +66,17 @@ class JobService:
                 result["analysis"] = analysis_result.to_dict()
         
         return result
+    
+    def _run_async_job(self, job_id: str):
+        """
+        Helper to run async job in thread
+        """
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(self._process_analysis_job(job_id))
+        finally:
+            loop.close()
     
     async def _process_analysis_job(self, job_id: str):
         """

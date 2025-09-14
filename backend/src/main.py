@@ -30,7 +30,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirnam
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize extensions
-CORS(app, origins=["http://localhost:3000", "https://*.vercel.app", "https://*.herokuapp.com"])
+CORS(app, origins=["http://localhost:3000", "http://localhost:5173", "http://localhost:5174", "https://*.vercel.app", "https://*.herokuapp.com"])
 jwt = JWTManager(app)
 db.init_app(app)
 
