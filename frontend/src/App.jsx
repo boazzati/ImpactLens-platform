@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Progress } from '@/components/ui/progress'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts'
 import { TrendingUp, Users, DollarSign, Target, Sparkles, BarChart3, PieChart as PieChartIcon, FileText, Settings, Bell, User } from 'lucide-react'
-import impactLensLogo from './assets/impactlens-logo.png'
+// Logo will be replaced with icon
 import './App.css'
 
 // Mock data for charts with luxury gold colors
@@ -254,7 +254,9 @@ function App() {
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img src={impactLensLogo} alt="ImpactLens" className="w-10 h-10 rounded-full" />
+              <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center">
+                <Sparkles className="h-6 w-6 text-white" />
+              </div>
               <div>
                 <h1 className="text-xl font-bold impactlens-text-gradient">ImpactLens</h1>
                 <p className="text-sm text-gray-600">Partnership Intelligence Platform</p>
