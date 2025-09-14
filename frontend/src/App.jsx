@@ -42,6 +42,7 @@ function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisComplete, setAnalysisComplete] = useState(false)
   const [analysisResults, setAnalysisResults] = useState(null)
+  const [authToken, setAuthToken] = useState(null)
   const [scenarioData, setScenarioData] = useState({
     brandA: '',
     brandB: '',
@@ -50,13 +51,46 @@ function App() {
     budget: ''
   })
 
+  // Auto-login on component mount
+  useEffect(() => {
+    const loginDemo = async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://impactlens-platform-20d6698d163f.herokuapp.com'}/api/auth/demo-login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          setAuthToken(data.access_token)
+        }
+      } catch (error) {
+        console.error('Auto-login failed:', error)
+      }
+    }
+    
+    loginDemo()
+  }, [])
+
   // Real API analysis
   const performAnalysis = async () => {
+    if (!authToken) {
+      setAnalysisResults({
+        error: 'Authentication required. Please refresh the page.',
+        overallScore: 0
+      })
+      setIsAnalyzing(false)
+      return
+    }
+
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://impactlens-platform-20d6698d163f.herokuapp.com'}/api/scenarios`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
         },
         body: JSON.stringify({
           brand_a: scenarioData.brandA,
@@ -90,7 +124,11 @@ function App() {
   const pollJobStatus = async (jobId) => {
     const pollInterval = setInterval(async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://impactlens-platform-20d6698d163f.herokuapp.com'}/api/jobs/${jobId}`)
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://impactlens-platform-20d6698d163f.herokuapp.com'}/api/jobs/${jobId}`, {
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        })
         const jobData = await response.json()
         
         if (jobData.status === 'completed') {
