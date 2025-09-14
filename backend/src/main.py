@@ -13,10 +13,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import models and routes
-from src.models.user import db
-from src.models.analysis import PartnershipScenario, AnalysisResult, AnalysisJob
-from src.routes.user import user_bp
-from src.routes.analysis import analysis_bp
+from models.user import db
+from models.analysis import PartnershipScenario, AnalysisResult, AnalysisJob
+from routes.user import user_bp
+from routes.analysis import analysis_bp
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
 

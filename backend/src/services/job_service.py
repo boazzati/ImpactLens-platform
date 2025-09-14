@@ -4,8 +4,8 @@ import asyncio
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
-from src.models.analysis import AnalysisJob, AnalysisResult, PartnershipScenario, db
-from src.services.openai_service import OpenAIService
+from models.analysis import AnalysisJob, AnalysisResult, PartnershipScenario, db
+from services.openai_service import OpenAIService
 
 logger = logging.getLogger(__name__)
 

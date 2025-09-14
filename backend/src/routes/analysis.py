@@ -1,9 +1,9 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token
-from src.models.analysis import PartnershipScenario, AnalysisJob, AnalysisResult, db
-from src.models.user import User
-from src.services.job_service import JobService
-from src.services.openai_service import OpenAIService
+from models.analysis import PartnershipScenario, AnalysisJob, AnalysisResult, db
+from models.user import User
+from services.job_service import JobService
+from services.openai_service import OpenAIService
 import logging
 
 analysis_bp = Blueprint('analysis', __name__)
