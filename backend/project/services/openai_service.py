@@ -16,13 +16,13 @@ class OpenAIService:
         
         logger.info(f"OpenAI API key loaded: {self.api_key[:8]}...{self.api_key[-4:]} ({len(self.api_key)} chars)")
         self.client = OpenAI(api_key=self.api_key)
-        # Use one of the supported models
-        self.model = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+        # Use the working model
+        self.model = os.getenv("OPENAI_MODEL", "gpt-4.1-nano")
 
     def analyze_partnership(self, scenario_data: Dict[str, Any]) -> Dict[str, Any]:
         start_time = time.time()
         try:
-            logger.info(f"Starting OpenAI analysis with model: {self.model}")
+            logger.info(f"🤖 Starting REAL OpenAI analysis with model: {self.model}")
             prompt = self._build_analysis_prompt(scenario_data)
             logger.info(f"Prompt: {prompt[:200]}...")
             
@@ -37,10 +37,10 @@ class OpenAIService:
             )
             
             analysis_duration = time.time() - start_time
-            logger.info(f"OpenAI response received in {analysis_duration:.2f}s")
+            logger.info(f"✅ REAL OpenAI response received in {analysis_duration:.2f}s")
             
             response_content = response.choices[0].message.content
-            logger.info(f"Raw response: {response_content}")
+            logger.info(f"Raw OpenAI response: {response_content[:200]}...")
             
             analysis_result = self._parse_analysis_response(response_content)
             
@@ -51,7 +51,7 @@ class OpenAIService:
                 "analysis_duration": analysis_duration
             }
         except Exception as e:
-            logger.error(f"OpenAI analysis failed: {str(e)}")
+            logger.error(f"❌ OpenAI analysis failed: {str(e)}")
             return {"status": "error", "error": str(e)}
 
     def _build_analysis_prompt(self, scenario_data: Dict[str, Any]) -> str:

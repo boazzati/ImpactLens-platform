@@ -23,8 +23,22 @@ def create_app():
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "impactlens_secret_key_2024")
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "impactlens_secret_key_2024")
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
-    db_path = os.path.join(os.path.dirname(__file__), "database", "app.db")
-    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
+    
+    # Database configuration - use PostgreSQL on Heroku, SQLite locally
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        # Heroku PostgreSQL
+        if database_url.startswith("postgres://"):
+            database_url = database_url.replace("postgres://", "postgresql://", 1)
+        app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+        logging.info("Using PostgreSQL database (Heroku)")
+    else:
+        # Local SQLite
+        db_path = os.path.join(os.path.dirname(__file__), "database", "app.db")
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
+        logging.info("Using SQLite database (local)")
+    
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
     # --- Initialize Extensions ---
@@ -46,22 +60,9 @@ def create_app():
         return jsonify({"error": "Authorization token required"}), 401
 
     # --- Import and Initialize Services ---
-    try:
-        from .services import OpenAIService
-        openai_service = OpenAIService()
-        # Test the service with a simple call
-        test_result = openai_service.analyze_partnership({
-            "brand_a": "Test Brand A",
-            "brand_b": "Test Brand B", 
-            "partnership_type": "Test"
-        })
-        if test_result["status"] == "error":
-            raise Exception(f"OpenAI service test failed: {test_result['error']}")
-        logging.info("Using real OpenAI service")
-    except Exception as e:
-        logging.warning(f"OpenAI service failed, using mock service: {str(e)}")
-        from .services.mock_openai_service import MockOpenAIService
-        openai_service = MockOpenAIService()
+    # Use hybrid service that tries OpenAI first, falls back to mock
+    from .services.hybrid_openai_service import HybridOpenAIService
+    openai_service = HybridOpenAIService()
     
     from .services import JobService
     with app.app_context():
@@ -75,12 +76,22 @@ def create_app():
 
     # --- Create Database Tables ---
     with app.app_context():
-        db.create_all()
+        try:
+            db.create_all()
+            logging.info("Database tables created successfully")
+        except Exception as e:
+            logging.error(f"Database initialization failed: {str(e)}")
 
     # --- Define Root and Health Check Routes ---
     @app.route("/api/health", methods=["GET"])
     def health_check():
-        return {"status": "healthy", "service": "ImpactLens API", "version": "2.1.0"}
+        return {
+            "status": "healthy", 
+            "service": "ImpactLens API", 
+            "version": "2.4.0",
+            "database": "PostgreSQL" if os.getenv("DATABASE_URL") else "SQLite",
+            "openai_available": hasattr(openai_service, 'openai_service') and openai_service.openai_service is not None
+        }
 
     @app.route("/", defaults={"path": ""})
     @app.route("/<path:path>")
