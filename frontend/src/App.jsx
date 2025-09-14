@@ -88,30 +88,42 @@ function App() {
             </div>
             <nav className="hidden md:flex items-center space-x-1">
               <Button 
-                variant={activeTab === 'dashboard' ? 'default' : 'ghost'} 
+                variant="ghost"
                 onClick={() => setActiveTab('dashboard')}
-                className="text-gray-700 hover:text-gray-900"
+                className={activeTab === 'dashboard' 
+                  ? "bg-amber-100 text-amber-800 hover:bg-amber-200" 
+                  : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+                }
               >
                 Dashboard
               </Button>
               <Button 
-                variant={activeTab === 'scenarios' ? 'default' : 'ghost'} 
+                variant="ghost"
                 onClick={() => setActiveTab('scenarios')}
-                className="text-gray-700 hover:text-gray-900"
+                className={activeTab === 'scenarios' 
+                  ? "bg-amber-100 text-amber-800 hover:bg-amber-200" 
+                  : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+                }
               >
                 Scenarios
               </Button>
               <Button 
-                variant={activeTab === 'partners' ? 'default' : 'ghost'} 
+                variant="ghost"
                 onClick={() => setActiveTab('partners')}
-                className="text-gray-700 hover:text-gray-900"
+                className={activeTab === 'partners' 
+                  ? "bg-amber-100 text-amber-800 hover:bg-amber-200" 
+                  : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+                }
               >
                 Partners
               </Button>
               <Button 
-                variant={activeTab === 'reports' ? 'default' : 'ghost'} 
+                variant="ghost"
                 onClick={() => setActiveTab('reports')}
-                className="text-gray-700 hover:text-gray-900"
+                className={activeTab === 'reports' 
+                  ? "bg-amber-100 text-amber-800 hover:bg-amber-200" 
+                  : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+                }
               >
                 Reports
               </Button>
