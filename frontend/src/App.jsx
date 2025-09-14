@@ -134,43 +134,43 @@ function App() {
   const renderScenarios = () => (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
       {/* Form */}
-      <div className="bg-white rounded-xl shadow-lg p-6">
+      <div className="bg-card rounded-xl luxury-shadow p-6 animate-fade-in">
         <div className="flex items-center mb-6">
-          <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center mr-3">
-            <span className="text-white font-bold">✨</span>
+          <div className="w-8 h-8 impactlens-gradient rounded-lg flex items-center justify-center mr-3">
+            <span className="text-primary-foreground font-bold">✨</span>
           </div>
-          <h2 className="text-xl font-semibold text-gray-800">Partnership Scenario Builder</h2>
+          <h2 className="text-xl font-semibold text-foreground">Partnership Scenario Builder</h2>
         </div>
         
-        <p className="text-gray-600 mb-6">Create and analyze new partnership opportunities</p>
+        <p className="text-muted-foreground mb-6">Create and analyze new partnership opportunities</p>
         
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Brand A</label>
+            <label className="block text-sm font-medium text-foreground mb-2">Brand A</label>
             <input
               type="text"
               placeholder="Enter first brand name"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-input rounded-lg bg-background bg-background focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
               value={scenarioData.brandA}
               onChange={(e) => handleInputChange('brandA', e.target.value)}
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Brand B</label>
+            <label className="block text-sm font-medium text-foreground mb-2">Brand B</label>
             <input
               type="text"
               placeholder="Enter second brand name"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-input rounded-lg bg-background focus:ring-2 focus:ring-ring focus:border-transparent"
               value={scenarioData.brandB}
               onChange={(e) => handleInputChange('brandB', e.target.value)}
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Partnership Type</label>
+            <label className="block text-sm font-medium text-foreground mb-2">Partnership Type</label>
             <select
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-input rounded-lg bg-background focus:ring-2 focus:ring-ring focus:border-transparent"
               value={scenarioData.partnershipType}
               onChange={(e) => handleInputChange('partnershipType', e.target.value)}
             >
@@ -186,20 +186,20 @@ function App() {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Target Audience</label>
+            <label className="block text-sm font-medium text-foreground mb-2">Target Audience</label>
             <input
               type="text"
               placeholder="Describe target audience"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-input rounded-lg bg-background focus:ring-2 focus:ring-ring focus:border-transparent"
               value={scenarioData.targetAudience}
               onChange={(e) => handleInputChange('targetAudience', e.target.value)}
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Budget Range</label>
+            <label className="block text-sm font-medium text-foreground mb-2">Budget Range</label>
             <select
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-input rounded-lg bg-background focus:ring-2 focus:ring-ring focus:border-transparent"
               value={scenarioData.budget}
               onChange={(e) => handleInputChange('budget', e.target.value)}
             >
@@ -215,7 +215,7 @@ function App() {
           <button
             onClick={handleAnalyze}
             disabled={isAnalyzing}
-            className="w-full bg-gradient-to-r from-yellow-500 to-orange-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-yellow-600 hover:to-orange-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            className="w-full impactlens-gradient text-primary-foreground py-3 px-6 rounded-lg font-semibold hover-lift transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
           >
             {isAnalyzing ? (
               <>
@@ -233,15 +233,15 @@ function App() {
       </div>
 
       {/* Results */}
-      <div className="bg-white rounded-xl shadow-lg p-6">
+      <div className="bg-card rounded-xl luxury-shadow p-6 animate-slide-up">
         <div className="flex items-center mb-6">
-          <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center mr-3">
-            <span className="text-white font-bold">📊</span>
+          <div className="w-8 h-8 impactlens-gradient rounded-lg flex items-center justify-center mr-3">
+            <span className="text-primary-foreground font-bold">📊</span>
           </div>
-          <h2 className="text-xl font-semibold text-gray-800">Analysis Results</h2>
+          <h2 className="text-xl font-semibold text-foreground">Analysis Results</h2>
         </div>
         
-        <p className="text-gray-600 mb-6">AI-powered partnership insights</p>
+        <p className="text-muted-foreground mb-6">AI-powered partnership insights</p>
         
         {!analysisResult ? (
           <div className="text-center py-12">
@@ -321,7 +321,7 @@ function App() {
                 {analysisResult.recommendations?.map((rec, index) => (
                   <li key={index} className="flex items-start">
                     <span className="text-green-500 mr-2 mt-1">•</span>
-                    <span className="text-gray-700 text-sm">{rec}</span>
+                    <span className="text-foreground text-sm">{rec}</span>
                   </li>
                 ))}
               </ul>
@@ -335,7 +335,7 @@ function App() {
                   {analysisResult.key_risks.map((risk, index) => (
                     <li key={index} className="flex items-start">
                       <span className="text-orange-500 mr-2 mt-1">⚠</span>
-                      <span className="text-gray-700 text-sm">{risk}</span>
+                      <span className="text-foreground text-sm">{risk}</span>
                     </li>
                   ))}
                 </ul>
@@ -369,19 +369,21 @@ function App() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-card luxury-shadow border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <div className="flex items-center">
-              <div className="w-10 h-10 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center mr-3">
-                <span className="text-white font-bold text-lg">IL</span>
-              </div>
+              <img 
+                src="/impactlens-logojustsymbol.png" 
+                alt="ImpactLens Logo" 
+                className="w-10 h-10 mr-3"
+              />
               <div>
-                <h1 className="text-xl font-bold text-gray-800">ImpactLens</h1>
-                <p className="text-xs text-gray-600">Partnership Intelligence Platform</p>
+                <h1 className="text-xl font-bold impactlens-text-gradient">ImpactLens</h1>
+                <p className="text-xs text-muted-foreground">Partnership Intelligence Platform</p>
               </div>
             </div>
             
@@ -416,7 +418,7 @@ function App() {
       </header>
 
       {/* Navigation */}
-      <nav className="bg-white border-b">
+      <nav className="bg-card border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-8">
             {[
@@ -430,8 +432,8 @@ function App() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
                   activeTab === tab.id
-                    ? `border-${tab.color}-500 text-${tab.color}-600`
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
                 }`}
               >
                 {tab.label}
