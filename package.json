@@ -1,13 +1,8 @@
 {
   "name": "impactlens-platform",
   "version": "1.0.0",
-  "description": "ImpactLens Partnership Intelligence Platform - Frontend",
+  "private": true,
   "scripts": {
-    "build": "cd frontend && npm install && npm run build",
-    "dev": "cd frontend && npm run dev",
-    "install": "cd frontend && npm install"
-  },
-  "engines": {
-    "node": "18.x"
+    "build": "cd frontend && npm install && npm run build"
   }
 }
