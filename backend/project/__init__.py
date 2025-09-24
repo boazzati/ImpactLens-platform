@@ -48,9 +48,12 @@ def create_app():
         "http://localhost:5173", 
         "https://*.vercel.app", 
         "https://*.herokuapp.com",
-        "https://impact-lens-platform-git-main-halims-projects-7eb5293f.vercel.app"
+        "https://impact-lens-platform-git-main-halims-projects-7eb5293f.vercel.app",
+        "https://impact-lens-platform-nstkzj7u-halims-projects-7eb5293f.vercel.app"
     ]
-    CORS(app, origins=cors_origins, supports_credentials=True)
+    CORS(app, origins=cors_origins, supports_credentials=True, 
+         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+         allow_headers=['Content-Type', 'Authorization'])
     logging.info(f"CORS configured for origins: {cors_origins}")
     
     jwt = JWTManager(app)
