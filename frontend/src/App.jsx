@@ -85,16 +85,10 @@ function App() {
     };
     
     try {
-      console.log('Sending analysis request:', requestData);
+      // Temporary: Try direct connection to Heroku
+      console.log('Attempting direct connection to Heroku...');
       
-      // First, test if API is reachable
-      const testResponse = await fetch('/api/test');
-      if (!testResponse.ok) {
-        throw new Error('API test endpoint not reachable');
-      }
-      
-      // Then make the actual request
-      const response = await fetch('/api/proxy', {
+      const response = await fetch('https://impactlens-platform-20d6698d163f.herokuapp.com/api/test-openai', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -102,14 +96,8 @@ function App() {
         body: JSON.stringify(requestData)
       });
       
-      console.log('Response status:', response.status);
-      
-      if (response.status === 405) {
-        throw new Error('API endpoint does not accept POST requests');
-      }
-      
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`Direct connection failed: ${response.status}`);
       }
       
       const result = await response.json();
@@ -117,7 +105,7 @@ function App() {
       setAnalysisProgress(100);
       
     } catch (error) {
-      console.error('Analysis failed:', error);
+      console.error('All connection methods failed:', error);
       setError(error.message);
       
       // Fallback to demo data
