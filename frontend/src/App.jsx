@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge.jsx'
 import { Progress } from '@/components/ui/progress.jsx'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts'
-import { TrendingUp, Users, Target, DollarSign, Sparkles, BarChart3, PieChart as PieChartIcon, LineChart as LineChartIcon, Download, Share2, Settings, Bell, User, LogOut, AlertCircle } from 'lucide-react'
+import { TrendingUp, Users, Target, DollarSign, Sparkles, BarChart3, PieChart as PieChartIcon, LineChart as LineChartIcon, Download, Share2, Settings, Bell, User, LogOut, AlertCircle, Wifi, WifiOff } from 'lucide-react'
 import impactLensLogo from './assets/impactlens-logojustsymbol.png'
 import './App.css'
 
@@ -50,6 +50,7 @@ function App() {
   const [apiStatus, setApiStatus] = useState('disconnected') // 'disconnected', 'connecting', 'connected'
   const [analysisResult, setAnalysisResult] = useState(null)
   const [error, setError] = useState(null)
+  const [connectionTested, setConnectionTested] = useState(false)
 
   // Check backend connection on component mount
   useEffect(() => {
@@ -59,7 +60,8 @@ function App() {
   const checkBackendConnection = async () => {
     setApiStatus('connecting')
     try {
-      const response = await fetch('https://impactlens-platform-20d6698d163f.herokuapp.com/api/health')
+      // Use CORS proxy for health check
+      const response = await fetch('https://cors-anywhere.herokuapp.com/https://impactlens-platform-20d6698d163f.herokuapp.com/api/health')
       if (response.ok) {
         setApiStatus('connected')
       } else {
@@ -69,62 +71,112 @@ function App() {
       console.error('Backend connection failed:', error)
       setApiStatus('disconnected')
     }
+    setConnectionTested(true)
   }
 
   const performRealAnalysis = async () => {
     setIsAnalyzing(true);
     setAnalysisProgress(0);
     setError(null);
+    setAnalysisResult(null);
     
     const requestData = {
       brand_a: scenarioData.brandA,
       brand_b: scenarioData.brandB,
       partnership_type: scenarioData.partnershipType,
-      target_audience: scenarioData.targetAudience,
-      budget_range: scenarioData.budget
+      target_audience: scenarioData.targetAudience || 'Not specified',
+      budget_range: scenarioData.budget || 'Not specified'
     };
     
+    // Simulate progress for better UX
+    const progressInterval = setInterval(() => {
+      setAnalysisProgress(prev => {
+        if (prev >= 90) {
+          clearInterval(progressInterval);
+          return 90;
+        }
+        return prev + 10;
+      });
+    }, 300);
+
     try {
-      // Temporary: Try direct connection to Heroku
-      console.log('Attempting direct connection to Heroku...');
+      console.log('🚀 Starting analysis with data:', requestData);
       
-      const response = await fetch('https://impactlens-platform-20d6698d163f.herokuapp.com/api/test-openai', {
+      // Use CORS proxy to avoid CORS issues
+      console.log('🔗 Attempting connection via CORS proxy...');
+      const response = await fetch('https://cors-anywhere.herokuapp.com/https://impactlens-platform-20d6698d163f.herokuapp.com/api/test-openai', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
         },
         body: JSON.stringify(requestData)
       });
       
-      if (!response.ok) {
-        throw new Error(`Direct connection failed: ${response.status}`);
-      }
+      console.log('📡 Response status:', response.status);
       
+      clearInterval(progressInterval);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText || 'Unknown error'}`);
+      }
+
       const result = await response.json();
-      setAnalysisResult(result);
+      console.log('✅ Analysis successful:', result);
+      
       setAnalysisProgress(100);
       
+      if (result.error) {
+        throw new Error(result.error);
+      }
+      
+      setAnalysisResult(result);
+      
     } catch (error) {
-      console.error('All connection methods failed:', error);
+      console.error('💥 Analysis failed:', error);
+      clearInterval(progressInterval);
+      setAnalysisProgress(100);
       setError(error.message);
       
-      // Fallback to demo data
+      // Provide user-friendly error message
+      let userFriendlyError = error.message;
+      if (error.message.includes('Failed to fetch')) {
+        userFriendlyError = 'Network connection failed. This is likely a CORS issue. Using demo data.';
+      } else if (error.message.includes('405')) {
+        userFriendlyError = 'API method not allowed. Check your proxy configuration. Using demo data.';
+      }
+      setError(userFriendlyError);
+      
+      // Fallback to realistic demo data
       setTimeout(() => {
         setAnalysisResult({
           status: 'success',
           service_used: 'fallback',
           analysis: {
-            brand_alignment_score: 85,
-            audience_overlap_percentage: 78,
-            roi_projection: 145,
-            risk_level: 'Medium',
-            key_risks: ['API connectivity issue', 'Using fallback data'],
-            recommendations: ['This is demo data. Check API configuration.'],
-            market_insights: ['Service temporarily using demonstration data']
-          }
+            brand_alignment_score: Math.floor(Math.random() * 20) + 75, // 75-95
+            audience_overlap_percentage: Math.floor(Math.random() * 30) + 60, // 60-90
+            roi_projection: Math.floor(Math.random() * 100) + 150, // 150-250
+            risk_level: ['Low', 'Medium', 'High'][Math.floor(Math.random() * 3)],
+            key_risks: [
+              'Service connectivity issue detected',
+              'Using demonstration data',
+              'Real AI analysis temporarily unavailable'
+            ],
+            recommendations: [
+              `Partnership between ${scenarioData.brandA} and ${scenarioData.brandB} shows strong potential`,
+              'Consider conducting market research to validate assumptions',
+              'Re-run analysis when AI service connectivity is restored'
+            ],
+            market_insights: [
+              'Analysis based on demonstration data due to service connectivity',
+              'Real-time AI insights will provide more accurate assessment'
+            ]
+          },
+          tokens_used: 0,
+          analysis_duration: 2.5
         });
-        setAnalysisProgress(100);
-      }, 1000);
+      }, 500);
     } finally {
       setIsAnalyzing(false);
     }
@@ -132,6 +184,11 @@ function App() {
 
   const handleInputChange = (field, value) => {
     setScenarioData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const retryConnection = () => {
+    setConnectionTested(false);
+    checkBackendConnection();
   }
 
   return (
@@ -154,15 +211,23 @@ function App() {
               <Button variant="ghost" onClick={() => setActiveTab('reports')}>Reports</Button>
             </nav>
             <div className="flex items-center space-x-3">
-              <div className={`flex items-center px-2 py-1 rounded-full text-xs ${
-                apiStatus === 'connected' ? 'bg-green-100 text-green-800' : 
-                apiStatus === 'connecting' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
+              <div className={`flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                apiStatus === 'connected' ? 'bg-green-100 text-green-800 border border-green-200' : 
+                apiStatus === 'connecting' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' : 
+                'bg-red-100 text-red-800 border border-red-200'
               }`}>
-                <div className={`w-2 h-2 rounded-full mr-1 ${
-                  apiStatus === 'connected' ? 'bg-green-500' : 
-                  apiStatus === 'connecting' ? 'bg-yellow-500' : 'bg-red-500'
-                }`} />
-                {apiStatus === 'connected' ? 'Connected' : apiStatus === 'connecting' ? 'Connecting' : 'Disconnected'}
+                {apiStatus === 'connected' ? <Wifi className="h-4 w-4 mr-2" /> : 
+                 apiStatus === 'connecting' ? <div className="h-4 w-4 mr-2 animate-pulse bg-current rounded-full" /> : 
+                 <WifiOff className="h-4 w-4 mr-2" />}
+                <span>
+                  {apiStatus === 'connected' ? 'Connected' : 
+                   apiStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+                </span>
+                {apiStatus === 'disconnected' && connectionTested && (
+                  <Button variant="ghost" size="sm" className="ml-2 h-6 text-xs" onClick={retryConnection}>
+                    Retry
+                  </Button>
+                )}
               </div>
               <Button variant="ghost" size="icon"><Bell className="h-4 w-4" /></Button>
               <Button variant="ghost" size="icon"><Settings className="h-4 w-4" /></Button>
@@ -176,6 +241,21 @@ function App() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
           {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="space-y-8 animate-fade-in">
+            {/* Connection Status Banner */}
+            {apiStatus === 'disconnected' && connectionTested && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div className="flex items-center">
+                  <AlertCircle className="h-5 w-5 text-amber-600 mr-3" />
+                  <div>
+                    <h3 className="text-sm font-medium text-amber-800">Backend Connection Issue</h3>
+                    <p className="text-sm text-amber-700 mt-1">
+                      Cannot connect to AI analysis service. Scenario analysis will use demonstration data.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card className="luxury-shadow hover-lift">
@@ -231,128 +311,126 @@ function App() {
               </Card>
             </div>
 
-            {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Charts and other dashboard content */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card className="luxury-shadow">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5 text-primary" />
-                    Partnership Performance
-                  </CardTitle>
-                  <CardDescription>Key metrics across partnership dimensions</CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5 text-primary" />
+                      Partnership Performance
+                    </CardTitle>
+                    <CardDescription>Key metrics across partnership dimensions</CardDescription>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={performanceData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                      <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                      <YAxis tick={{ fontSize: 12 }} />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'white', 
-                          border: '1px solid #e0e0e0',
-                          borderRadius: '8px',
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                        }} 
-                      />
-                      <Bar dataKey="value" fill="#D4AF37" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={performanceData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="name" />
+                        <YAxis domain={[0, 100]} />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: 'rgba(255, 255, 255, 0.9)', 
+                            borderColor: '#D4AF37',
+                            borderRadius: '4px',
+                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                          }} 
+                        />
+                        <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                          {performanceData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </CardContent>
               </Card>
 
               <Card className="luxury-shadow">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <PieChartIcon className="h-5 w-5 text-primary" />
-                    Audience Breakdown
-                  </CardTitle>
-                  <CardDescription>Target audience composition analysis</CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <PieChartIcon className="h-5 w-5 text-primary" />
+                      Audience Breakdown
+                    </CardTitle>
+                    <CardDescription>Target audience composition analysis</CardDescription>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={audienceBreakdown}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={120}
-                        paddingAngle={2}
-                        dataKey="value"
-                      >
-                        {audienceBreakdown.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'white', 
-                          border: '1px solid #e0e0e0',
-                          borderRadius: '8px',
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                        }} 
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="flex flex-wrap gap-2 mt-4">
-                    {audienceBreakdown.map((item, index) => (
-                      <Badge key={index} variant="outline" className="text-xs">
-                        <div 
-                          className="w-2 h-2 rounded-full mr-2" 
-                          style={{ backgroundColor: item.color }}
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={audienceBreakdown}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={120}
+                          paddingAngle={2}
+                          dataKey="value"
+                        >
+                          {audienceBreakdown.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: 'rgba(255, 255, 255, 0.9)', 
+                            borderColor: '#D4AF37',
+                            borderRadius: '4px',
+                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                          }} 
+                          formatter={(value) => [`${value}%`, 'Percentage']}
                         />
-                        {item.name}: {item.value}%
-                      </Badge>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mt-4">
+                    {audienceBreakdown.map((item, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
+                        <span className="text-xs">{item.name}: {item.value}%</span>
+                      </div>
                     ))}
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* ROI Projection */}
             <Card className="luxury-shadow">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <LineChartIcon className="h-5 w-5 text-primary" />
-                  ROI Projection & Reach Growth
-                </CardTitle>
-                <CardDescription>6-month partnership performance forecast</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <LineChartIcon className="h-5 w-5 text-primary" />
+                    ROI Projection & Reach Growth
+                  </CardTitle>
+                  <CardDescription>6-month partnership performance forecast</CardDescription>
+                </div>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={400}>
-                  <LineChart data={roiProjection}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                    <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
-                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'white', 
-                        border: '1px solid #e0e0e0',
-                        borderRadius: '8px',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                      }} 
-                    />
-                    <Line 
-                      yAxisId="left" 
-                      type="monotone" 
-                      dataKey="roi" 
-                      stroke="#D4AF37" 
-                      strokeWidth={3}
-                      dot={{ fill: '#D4AF37', strokeWidth: 2, r: 6 }}
-                    />
-                    <Line 
-                      yAxisId="right" 
-                      type="monotone" 
-                      dataKey="reach" 
-                      stroke="#B8941F" 
-                      strokeWidth={3}
-                      strokeDasharray="5 5"
-                      dot={{ fill: '#B8941F', strokeWidth: 2, r: 6 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={roiProjection} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis dataKey="month" />
+                      <YAxis yAxisId="left" orientation="left" stroke="#D4AF37" />
+                      <YAxis yAxisId="right" orientation="right" stroke="#B8941F" />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.9)', 
+                          borderColor: '#D4AF37',
+                          borderRadius: '4px',
+                          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                        }} 
+                      />
+                      <Line yAxisId="left" type="monotone" dataKey="roi" stroke="#D4AF37" strokeWidth={2} dot={{ r: 4, fill: '#D4AF37' }} activeDot={{ r: 6 }} />
+                      <Line yAxisId="right" type="monotone" dataKey="reach" stroke="#B8941F" strokeWidth={2} dot={{ r: 4, fill: '#B8941F' }} activeDot={{ r: 6 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -367,7 +445,9 @@ function App() {
                     <Sparkles className="h-5 w-5 text-primary" />
                     Partnership Scenario Builder
                   </CardTitle>
-                  <CardDescription>Configure partnership parameters for AI analysis</CardDescription>
+                  <CardDescription>
+                    Configure partnership parameters for AI analysis
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -393,8 +473,11 @@ function App() {
 
                   <div className="space-y-2">
                     <Label htmlFor="partnershipType">Partnership Type</Label>
-                    <Select value={scenarioData.partnershipType} onValueChange={(value) => handleInputChange('partnershipType', value)}>
-                      <SelectTrigger>
+                    <Select
+                      value={scenarioData.partnershipType}
+                      onValueChange={(value) => handleInputChange('partnershipType', value)}
+                    >
+                      <SelectTrigger id="partnershipType">
                         <SelectValue placeholder="Select partnership type" />
                       </SelectTrigger>
                       <SelectContent>
@@ -409,8 +492,11 @@ function App() {
 
                   <div className="space-y-2">
                     <Label htmlFor="targetAudience">Target Audience</Label>
-                    <Select value={scenarioData.targetAudience} onValueChange={(value) => handleInputChange('targetAudience', value)}>
-                      <SelectTrigger>
+                    <Select
+                      value={scenarioData.targetAudience}
+                      onValueChange={(value) => handleInputChange('targetAudience', value)}
+                    >
+                      <SelectTrigger id="targetAudience">
                         <SelectValue placeholder="Select target audience" />
                       </SelectTrigger>
                       <SelectContent>
@@ -425,8 +511,11 @@ function App() {
 
                   <div className="space-y-2">
                     <Label htmlFor="budget">Budget Range</Label>
-                    <Select value={scenarioData.budget} onValueChange={(value) => handleInputChange('budget', value)}>
-                      <SelectTrigger>
+                    <Select
+                      value={scenarioData.budget}
+                      onValueChange={(value) => handleInputChange('budget', value)}
+                    >
+                      <SelectTrigger id="budget">
                         <SelectValue placeholder="Select budget range" />
                       </SelectTrigger>
                       <SelectContent>
@@ -440,29 +529,38 @@ function App() {
                   </div>
 
                   {error && (
-                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-                      <AlertCircle className="h-4 w-4 text-red-600" />
-                      <span className="text-sm text-red-700">{error}</span>
-                    </div>
-                  )}
-
-                  {isAnalyzing && (
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Analyzing partnership potential...</span>
-                        <span>{analysisProgress}%</span>
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                      <div className="flex items-center">
+                        <AlertCircle className="h-4 w-4 text-red-600 mr-2" />
+                        <p className="text-sm text-red-700">{error}</p>
                       </div>
-                      <Progress value={analysisProgress} className="w-full" />
                     </div>
                   )}
 
                   <Button 
+                    className="w-full bg-primary hover:bg-primary/90" 
                     onClick={performRealAnalysis}
-                    disabled={isAnalyzing || !scenarioData.brandA || !scenarioData.brandB}
-                    className="w-full"
+                    disabled={isAnalyzing || !scenarioData.brandA || !scenarioData.brandB || !scenarioData.partnershipType}
                   >
-                    {isAnalyzing ? 'Analyzing...' : 'Analyze Partnership'}
+                    {isAnalyzing ? (
+                      <>
+                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                        Analyzing Partnership
+                      </>
+                    ) : (
+                      'Analyze Partnership'
+                    )}
                   </Button>
+
+                  {isAnalyzing && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs">
+                        <span>Analysis in progress...</span>
+                        <span>{analysisProgress}%</span>
+                      </div>
+                      <Progress value={analysisProgress} className="h-2" />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -471,7 +569,7 @@ function App() {
                 <Card className="luxury-shadow">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Target className="h-5 w-5 text-primary" />
+                      <Sparkles className="h-5 w-5 text-primary" />
                       Analysis Results
                     </CardTitle>
                     <CardDescription>
@@ -479,30 +577,59 @@ function App() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="text-center p-4 bg-primary/5 rounded-lg">
-                        <div className="text-2xl font-bold text-primary">{analysisResult.analysis.brand_alignment_score}/10</div>
-                        <div className="text-sm text-muted-foreground">Brand Alignment</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex flex-col items-center justify-center">
+                        <div className="text-4xl font-bold text-amber-800">
+                          {analysisResult.analysis.brand_alignment_score}/10
+                        </div>
+                        <div className="text-sm text-amber-700 mt-1">Brand Alignment</div>
                       </div>
-                      <div className="text-center p-4 bg-primary/5 rounded-lg">
-                        <div className="text-2xl font-bold text-primary">{analysisResult.analysis.audience_overlap_percentage}%</div>
-                        <div className="text-sm text-muted-foreground">Audience Overlap</div>
-                      </div>
-                      <div className="text-center p-4 bg-primary/5 rounded-lg">
-                        <div className="text-2xl font-bold text-primary">{analysisResult.analysis.roi_projection}%</div>
-                        <div className="text-sm text-muted-foreground">ROI Projection</div>
-                      </div>
-                      <div className="text-center p-4 bg-primary/5 rounded-lg">
-                        <div className="text-2xl font-bold text-green-600">{analysisResult.analysis.risk_level}</div>
-                        <div className="text-sm text-muted-foreground">Risk Level</div>
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex flex-col items-center justify-center">
+                        <div className="text-4xl font-bold text-blue-800">
+                          {analysisResult.analysis.audience_overlap_percentage}%
+                        </div>
+                        <div className="text-sm text-blue-700 mt-1">Audience Overlap</div>
                       </div>
                     </div>
 
-                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                      <h4 className="font-semibold text-green-800 mb-2">Recommendation</h4>
-                      <p className="text-sm text-green-700">
-                        {analysisResult.analysis.recommendations[0]}
-                      </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex flex-col items-center justify-center">
+                        <div className="text-4xl font-bold text-green-800">
+                          {analysisResult.analysis.roi_projection}%
+                        </div>
+                        <div className="text-sm text-green-700 mt-1">ROI Projection</div>
+                      </div>
+                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 flex flex-col items-center justify-center">
+                        <div className="text-4xl font-bold text-purple-800">
+                          {analysisResult.analysis.risk_level}
+                        </div>
+                        <div className="text-sm text-purple-700 mt-1">Risk Level</div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <h4 className="font-semibold text-red-800 mb-2">Key Risks</h4>
+                        <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+                          {analysisResult.analysis.key_risks.map((risk, index) => (
+                            <li key={index}>{risk}</li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <h4 className="font-semibold text-green-800 mb-2">Recommendation</h4>
+                        <p className="text-sm text-green-700">
+                          {analysisResult.analysis.recommendations[0]}
+                        </p>
+                      </div>
+
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h4 className="font-semibold text-blue-800 mb-2">Market Insights</h4>
+                        <p className="text-sm text-blue-700">
+                          {analysisResult.analysis.market_insights[0]}
+                        </p>
+                      </div>
                     </div>
 
                     <div className="flex gap-2">
@@ -517,7 +644,7 @@ function App() {
                     </div>
                     
                     {analysisResult.service_used === 'fallback' && (
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-xs text-muted-foreground p-2 bg-gray-50 rounded">
                         Analysis powered by fallback data. Check backend connection for real AI analysis.
                       </div>
                     )}
@@ -528,39 +655,35 @@ function App() {
           </TabsContent>
 
           {/* Partners Tab */}
-          <TabsContent value="partners" className="animate-fade-in">
+          <TabsContent value="partners" className="space-y-8 animate-fade-in">
             <Card className="luxury-shadow">
               <CardHeader>
-                <CardTitle>Partner Directory</CardTitle>
-                <CardDescription>Discover and manage partnership opportunities</CardDescription>
+                <CardTitle>Partner Database</CardTitle>
+                <CardDescription>
+                  Manage and analyze your partnership portfolio
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-12">
-                  <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Partner Discovery Coming Soon</h3>
-                  <p className="text-muted-foreground">
-                    Advanced partner matching and discovery features will be available in the next release.
-                  </p>
-                </div>
+                <p className="text-muted-foreground">
+                  Partner management features coming soon...
+                </p>
               </CardContent>
             </Card>
           </TabsContent>
 
           {/* Reports Tab */}
-          <TabsContent value="reports" className="animate-fade-in">
+          <TabsContent value="reports" className="space-y-8 animate-fade-in">
             <Card className="luxury-shadow">
               <CardHeader>
-                <CardTitle>Reports & Analytics</CardTitle>
-                <CardDescription>Generate comprehensive partnership reports</CardDescription>
+                <CardTitle>Partnership Reports</CardTitle>
+                <CardDescription>
+                  Generate comprehensive partnership intelligence reports
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-12">
-                  <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Advanced Reporting Coming Soon</h3>
-                  <p className="text-muted-foreground">
-                    Detailed reporting and export capabilities will be available in the next release.
-                  </p>
-                </div>
+                <p className="text-muted-foreground">
+                  Reporting features coming soon...
+                </p>
               </CardContent>
             </Card>
           </TabsContent>
