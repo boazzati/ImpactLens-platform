@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge.jsx'
 import { Progress } from '@/components/ui/progress.jsx'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts'
-import { TrendingUp, Users, Target, DollarSign, Sparkles, BarChart3, PieChart as PieChartIcon, LineChart as LineChartIcon, Download, Share2, Settings, Bell, User, LogOut } from 'lucide-react'
+import { TrendingUp, Users, Target, DollarSign, Sparkles, BarChart3, PieChart as PieChartIcon, LineChart as LineChartIcon, Download, Share2, Settings, Bell, User, LogOut, AlertCircle } from 'lucide-react'
 import impactLensLogo from './assets/impactlens-logojustsymbol.png'
 import './App.css'
 
@@ -47,26 +47,91 @@ function App() {
     targetAudience: '',
     budget: ''
   })
+  const [apiStatus, setApiStatus] = useState('disconnected') // 'disconnected', 'connecting', 'connected'
+  const [analysisResult, setAnalysisResult] = useState(null)
+  const [error, setError] = useState(null)
 
-  // Simulate analysis progress
+  // Check backend connection on component mount
   useEffect(() => {
-    if (isAnalyzing) {
-      const interval = setInterval(() => {
-        setAnalysisProgress(prev => {
-          if (prev >= 100) {
-            setIsAnalyzing(false)
-            return 100
-          }
-          return prev + Math.random() * 15
-        })
-      }, 500)
-      return () => clearInterval(interval)
-    }
-  }, [isAnalyzing])
+    checkBackendConnection()
+  }, [])
 
-  const startAnalysis = () => {
+  const checkBackendConnection = async () => {
+    setApiStatus('connecting')
+    try {
+      const response = await fetch('https://impactlens-platform-20d6698d163f.herokuapp.com/api/health')
+      if (response.ok) {
+        setApiStatus('connected')
+      } else {
+        setApiStatus('disconnected')
+      }
+    } catch (error) {
+      console.error('Backend connection failed:', error)
+      setApiStatus('disconnected')
+    }
+  }
+
+  const performRealAnalysis = async () => {
     setIsAnalyzing(true)
     setAnalysisProgress(0)
+    setError(null)
+    
+    // Prepare request data
+    const requestData = {
+      brand_a: scenarioData.brandA,
+      brand_b: scenarioData.brandB,
+      partnership_type: scenarioData.partnershipType,
+      target_audience: scenarioData.targetAudience,
+      budget_range: scenarioData.budget
+    }
+    
+    try {
+      // Try to call our proxy endpoint first
+      const response = await fetch('/api/proxy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData)
+      })
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const result = await response.json()
+      
+      if (result.status === 'success') {
+        setAnalysisResult(result)
+        setAnalysisProgress(100)
+      } else {
+        throw new Error(result.error || 'Analysis failed')
+      }
+    } catch (error) {
+      console.error('API call failed:', error)
+      setError(error.message)
+      // Fall back to mock data for demonstration
+      setTimeout(() => {
+        setAnalysisResult({
+          status: 'success',
+          analysis: {
+            brand_alignment_score: 8.7,
+            audience_overlap_percentage: 73,
+            roi_projection: 285,
+            risk_level: 'Low',
+            key_risks: ['Market competition', 'Brand dilution'],
+            recommendations: ['This partnership shows excellent potential with strong brand alignment and significant audience overlap. Consider proceeding with a co-branding initiative focused on luxury experiences.'],
+            market_insights: ['Growing demand for premium collaborations', 'High consumer interest in limited editions']
+          },
+          tokens_used: 0,
+          analysis_duration: 2.5,
+          service_used: 'fallback'
+        })
+        setAnalysisProgress(100)
+      }, 2000)
+    } finally {
+      setIsAnalyzing(false)
+    }
   }
 
   const handleInputChange = (field, value) => {
@@ -93,6 +158,16 @@ function App() {
               <Button variant="ghost" onClick={() => setActiveTab('reports')}>Reports</Button>
             </nav>
             <div className="flex items-center space-x-3">
+              <div className={`flex items-center px-2 py-1 rounded-full text-xs ${
+                apiStatus === 'connected' ? 'bg-green-100 text-green-800' : 
+                apiStatus === 'connecting' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
+              }`}>
+                <div className={`w-2 h-2 rounded-full mr-1 ${
+                  apiStatus === 'connected' ? 'bg-green-500' : 
+                  apiStatus === 'connecting' ? 'bg-yellow-500' : 'bg-red-500'
+                }`} />
+                {apiStatus === 'connected' ? 'Connected' : apiStatus === 'connecting' ? 'Connecting' : 'Disconnected'}
+              </div>
               <Button variant="ghost" size="icon"><Bell className="h-4 w-4" /></Button>
               <Button variant="ghost" size="icon"><Settings className="h-4 w-4" /></Button>
               <Button variant="ghost" size="icon"><User className="h-4 w-4" /></Button>
@@ -296,24 +371,24 @@ function App() {
                     <Sparkles className="h-5 w-5 text-primary" />
                     Partnership Scenario Builder
                   </CardTitle>
-                  <CardDescription>Create and analyze new partnership opportunities</CardDescription>
+                  <CardDescription>Configure partnership parameters for AI analysis</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="brandA">Brand A</Label>
-                      <Input 
+                      <Input
                         id="brandA"
-                        placeholder="Enter first brand name"
+                        placeholder="e.g., Tesla"
                         value={scenarioData.brandA}
                         onChange={(e) => handleInputChange('brandA', e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="brandB">Brand B</Label>
-                      <Input 
+                      <Input
                         id="brandB"
-                        placeholder="Enter second brand name"
+                        placeholder="e.g., SpaceX"
                         value={scenarioData.brandB}
                         onChange={(e) => handleInputChange('brandB', e.target.value)}
                       />
@@ -327,23 +402,29 @@ function App() {
                         <SelectValue placeholder="Select partnership type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="co-branding">Co-Branding</SelectItem>
+                        <SelectItem value="co-branding">Co-branding</SelectItem>
+                        <SelectItem value="joint-venture">Joint Venture</SelectItem>
+                        <SelectItem value="licensing">Licensing</SelectItem>
                         <SelectItem value="sponsorship">Sponsorship</SelectItem>
-                        <SelectItem value="collaboration">Product Collaboration</SelectItem>
-                        <SelectItem value="event">Event Partnership</SelectItem>
-                        <SelectItem value="licensing">Licensing Agreement</SelectItem>
+                        <SelectItem value="distribution">Distribution Partnership</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="targetAudience">Target Audience</Label>
-                    <Input 
-                      id="targetAudience"
-                      placeholder="Describe target audience"
-                      value={scenarioData.targetAudience}
-                      onChange={(e) => handleInputChange('targetAudience', e.target.value)}
-                    />
+                    <Select value={scenarioData.targetAudience} onValueChange={(value) => handleInputChange('targetAudience', value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select target audience" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="luxury-consumers">Luxury Consumers</SelectItem>
+                        <SelectItem value="tech-enthusiasts">Tech Enthusiasts</SelectItem>
+                        <SelectItem value="millennials">Millennials</SelectItem>
+                        <SelectItem value="gen-z">Gen Z</SelectItem>
+                        <SelectItem value="business-professionals">Business Professionals</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-2">
@@ -353,61 +434,70 @@ function App() {
                         <SelectValue placeholder="Select budget range" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="under-100k">Under $100K</SelectItem>
                         <SelectItem value="100k-500k">$100K - $500K</SelectItem>
                         <SelectItem value="500k-1m">$500K - $1M</SelectItem>
                         <SelectItem value="1m-5m">$1M - $5M</SelectItem>
-                        <SelectItem value="5m+">$5M+</SelectItem>
+                        <SelectItem value="over-5m">Over $5M</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
+                  {error && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 text-red-600" />
+                      <span className="text-sm text-red-700">{error}</span>
+                    </div>
+                  )}
+
                   {isAnalyzing && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <Label>Analysis Progress</Label>
-                        <span className="text-sm text-muted-foreground">{Math.round(analysisProgress)}%</span>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Analyzing partnership potential...</span>
+                        <span>{analysisProgress}%</span>
                       </div>
                       <Progress value={analysisProgress} className="w-full" />
-                      <p className="text-sm text-muted-foreground">AI is analyzing partnership potential...</p>
                     </div>
                   )}
 
                   <Button 
-                    onClick={startAnalysis} 
+                    onClick={performRealAnalysis}
                     disabled={isAnalyzing || !scenarioData.brandA || !scenarioData.brandB}
-                    className="w-full impactlens-gradient hover:opacity-90 transition-opacity"
+                    className="w-full"
                   >
-                    {isAnalyzing ? 'Analyzing...' : 'Start AI Analysis'}
+                    {isAnalyzing ? 'Analyzing...' : 'Analyze Partnership'}
                   </Button>
                 </CardContent>
               </Card>
 
               {/* Analysis Results */}
-              {analysisProgress === 100 && (
-                <Card className="luxury-shadow animate-slide-up">
+              {analysisResult && (
+                <Card className="luxury-shadow">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Target className="h-5 w-5 text-primary" />
                       Analysis Results
                     </CardTitle>
-                    <CardDescription>AI-powered partnership insights</CardDescription>
+                    <CardDescription>
+                      Partnership analysis for {scenarioData.brandA} × {scenarioData.brandB}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="text-center p-4 bg-primary/5 rounded-lg">
-                        <div className="text-2xl font-bold text-primary">8.7</div>
+                        <div className="text-2xl font-bold text-primary">{analysisResult.analysis.brand_alignment_score}/10</div>
                         <div className="text-sm text-muted-foreground">Brand Alignment</div>
                       </div>
                       <div className="text-center p-4 bg-primary/5 rounded-lg">
-                        <div className="text-2xl font-bold text-primary">73%</div>
+                        <div className="text-2xl font-bold text-primary">{analysisResult.analysis.audience_overlap_percentage}%</div>
                         <div className="text-sm text-muted-foreground">Audience Overlap</div>
                       </div>
                       <div className="text-center p-4 bg-primary/5 rounded-lg">
-                        <div className="text-2xl font-bold text-primary">285%</div>
+                        <div className="text-2xl font-bold text-primary">{analysisResult.analysis.roi_projection}%</div>
                         <div className="text-sm text-muted-foreground">ROI Projection</div>
                       </div>
                       <div className="text-center p-4 bg-primary/5 rounded-lg">
-                        <div className="text-2xl font-bold text-green-600">Low</div>
+                        <div className="text-2xl font-bold text-green-600">{analysisResult.analysis.risk_level}</div>
                         <div className="text-sm text-muted-foreground">Risk Level</div>
                       </div>
                     </div>
@@ -415,8 +505,7 @@ function App() {
                     <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                       <h4 className="font-semibold text-green-800 mb-2">Recommendation</h4>
                       <p className="text-sm text-green-700">
-                        This partnership shows excellent potential with strong brand alignment and significant audience overlap. 
-                        Consider proceeding with a co-branding initiative focused on luxury experiences.
+                        {analysisResult.analysis.recommendations[0]}
                       </p>
                     </div>
 
@@ -430,6 +519,12 @@ function App() {
                         Share Analysis
                       </Button>
                     </div>
+                    
+                    {analysisResult.service_used === 'fallback' && (
+                      <div className="text-xs text-muted-foreground">
+                        Analysis powered by fallback data. Check backend connection for real AI analysis.
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )}
