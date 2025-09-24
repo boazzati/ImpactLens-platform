@@ -1,5 +1,4 @@
 {
-  "name": "impactlens-frontend",
   "version": 2,
   "builds": [
     {
@@ -20,10 +19,6 @@
       "dest": "/api/$1"
     },
     {
-      "src": "/assets/(.*)",
-      "dest": "/assets/$1"
-    },
-    {
       "src": "/(.*)",
       "dest": "/index.html"
     }
@@ -34,8 +29,5 @@
     }
   },
   "installCommand": "pnpm install --no-frozen-lockfile",
-  "buildCommand": "pnpm run build",
-  "env": {
-    "REACT_APP_API_URL": "https://impactlens-platform-20d6698d163f.herokuapp.com"
-  }
+  "buildCommand": "vite build"
 }
