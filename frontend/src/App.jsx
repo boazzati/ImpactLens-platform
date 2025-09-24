@@ -72,67 +72,75 @@ function App() {
   }
 
   const performRealAnalysis = async () => {
-    setIsAnalyzing(true)
-    setAnalysisProgress(0)
-    setError(null)
+    setIsAnalyzing(true);
+    setAnalysisProgress(0);
+    setError(null);
     
-    // Prepare request data
     const requestData = {
       brand_a: scenarioData.brandA,
       brand_b: scenarioData.brandB,
       partnership_type: scenarioData.partnershipType,
       target_audience: scenarioData.targetAudience,
       budget_range: scenarioData.budget
-    }
+    };
     
     try {
-      // Try to call our proxy endpoint first
+      console.log('Sending analysis request:', requestData);
+      
+      // First, test if API is reachable
+      const testResponse = await fetch('/api/test');
+      if (!testResponse.ok) {
+        throw new Error('API test endpoint not reachable');
+      }
+      
+      // Then make the actual request
       const response = await fetch('/api/proxy', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(requestData)
-      })
+      });
+      
+      console.log('Response status:', response.status);
+      
+      if (response.status === 405) {
+        throw new Error('API endpoint does not accept POST requests');
+      }
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      const result = await response.json()
+      const result = await response.json();
+      setAnalysisResult(result);
+      setAnalysisProgress(100);
       
-      if (result.status === 'success') {
-        setAnalysisResult(result)
-        setAnalysisProgress(100)
-      } else {
-        throw new Error(result.error || 'Analysis failed')
-      }
     } catch (error) {
-      console.error('API call failed:', error)
-      setError(error.message)
-      // Fall back to mock data for demonstration
+      console.error('Analysis failed:', error);
+      setError(error.message);
+      
+      // Fallback to demo data
       setTimeout(() => {
         setAnalysisResult({
           status: 'success',
+          service_used: 'fallback',
           analysis: {
-            brand_alignment_score: 8.7,
-            audience_overlap_percentage: 73,
-            roi_projection: 285,
-            risk_level: 'Low',
-            key_risks: ['Market competition', 'Brand dilution'],
-            recommendations: ['This partnership shows excellent potential with strong brand alignment and significant audience overlap. Consider proceeding with a co-branding initiative focused on luxury experiences.'],
-            market_insights: ['Growing demand for premium collaborations', 'High consumer interest in limited editions']
-          },
-          tokens_used: 0,
-          analysis_duration: 2.5,
-          service_used: 'fallback'
-        })
-        setAnalysisProgress(100)
-      }, 2000)
+            brand_alignment_score: 85,
+            audience_overlap_percentage: 78,
+            roi_projection: 145,
+            risk_level: 'Medium',
+            key_risks: ['API connectivity issue', 'Using fallback data'],
+            recommendations: ['This is demo data. Check API configuration.'],
+            market_insights: ['Service temporarily using demonstration data']
+          }
+        });
+        setAnalysisProgress(100);
+      }, 1000);
     } finally {
-      setIsAnalyzing(false)
+      setIsAnalyzing(false);
     }
-  }
+  };
 
   const handleInputChange = (field, value) => {
     setScenarioData(prev => ({ ...prev, [field]: value }))

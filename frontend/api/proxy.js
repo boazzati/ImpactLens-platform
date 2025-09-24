@@ -1,112 +1,98 @@
-// api/proxy-enhanced.js - Enhanced version with caching and retries
-const CACHE = new Map();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+// api/proxy.js - Fixed version for Vercel
+export default async function handler(request, response) {
+  // Log the request for debugging
+  console.log('Proxy received request:', {
+    method: request.method,
+    url: request.url,
+    headers: request.headers,
+    body: request.body
+  });
 
-export default async function handler(req, res) {
-  // CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  // Handle preflight
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+  // Set CORS headers
+  response.setHeader('Access-Control-Allow-Origin', '*');
+  response.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  response.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  // Handle preflight requests
+  if (request.method === 'OPTIONS') {
+    return response.status(200).end();
   }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  try {
-    const requestBody = req.body;
-    const cacheKey = JSON.stringify(requestBody);
-    
-    // Check cache
-    const cached = CACHE.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-      console.log('💾 Serving from cache');
-      return res.status(200).json({
-        ...cached.data,
-        cached: true,
-        cache_timestamp: cached.timestamp
-      });
-    }
-
-    // Retry logic
-    let lastError;
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        console.log(`🔄 Attempt ${attempt} to connect to backend`);
-        
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
-        
-        const backendResponse = await fetch('https://impactlens-platform-20d6698d163f.herokuapp.com/api/test-openai', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestBody),
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-
-        if (backendResponse.ok) {
-          const data = await backendResponse.json();
-          
-          // Cache successful response
-          CACHE.set(cacheKey, {
-            data: data,
-            timestamp: Date.now()
-          });
-          
-          return res.status(200).json({
-            ...data,
-            attempts: attempt,
-            proxy_used: true
-          });
-        }
-        
-        lastError = new Error(`Backend responded with ${backendResponse.status}`);
-        
-      } catch (error) {
-        lastError = error;
-        if (attempt < 3) {
-          await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
-        }
-      }
-    }
-
-    throw lastError;
-
-  } catch (error) {
-    console.error('Proxy service failed after retries:', error);
-    
-    return res.status(500).json({
-      error: 'Service unavailable: ' + error.message,
-      service_used: 'proxy-fallback',
-      analysis: getFallbackAnalysis(req.body),
-      proxy_error: true
+  
+  // Only allow POST requests
+  if (request.method !== 'POST') {
+    console.log('Method not allowed:', request.method);
+    return response.status(405).json({ 
+      error: 'Method Not Allowed',
+      allowed: ['POST'],
+      received: request.method 
     });
   }
-}
-
-function getFallbackAnalysis(requestBody) {
-  // Generate reasonable fallback data based on input
-  const { brand_a, brand_b } = requestBody;
   
-  return {
-    brand_alignment_score: Math.floor(Math.random() * 30) + 70, // 70-100
-    audience_overlap_percentage: Math.floor(Math.random() * 40) + 60, // 60-100
-    roi_projection: Math.floor(Math.random() * 100) + 150, // 150-250
-    risk_level: ['Low', 'Medium', 'High'][Math.floor(Math.random() * 3)],
-    key_risks: ['Service connectivity issue', 'Using simulated data', 'Please check backend service'],
-    recommendations: [
-      `Partnership between ${brand_a} and ${brand_b} shows potential`,
-      'Consider conducting further market research',
-      'Re-run analysis when service is restored'
-    ],
-    market_insights: ['Analysis based on fallback data due to service issue']
-  };
+  try {
+    // Parse the request body
+    let body;
+    try {
+      body = typeof request.body === 'string' ? JSON.parse(request.body) : request.body;
+    } catch (parseError) {
+      return response.status(400).json({ 
+        error: 'Invalid JSON in request body',
+        details: parseError.message 
+      });
+    }
+    
+    const { brand_a, brand_b, partnership_type, target_audience, budget_range } = body;
+    
+    // Validate required fields
+    if (!brand_a || !brand_b || !partnership_type) {
+      return response.status(400).json({
+        error: 'Missing required fields',
+        required: ['brand_a', 'brand_b', 'partnership_type'],
+        received: { brand_a, brand_b, partnership_type }
+      });
+    }
+    
+    console.log('Forwarding request to backend:', { brand_a, brand_b, partnership_type });
+    
+    // Forward to your Heroku backend
+    const backendResponse = await fetch('https://impactlens-platform-20d6698d163f.herokuapp.com/api/test-openai', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'ImpactLens-Proxy/1.0'
+      },
+      body: JSON.stringify({
+        brand_a,
+        brand_b,
+        partnership_type,
+        target_audience: target_audience || 'Not specified',
+        budget_range: budget_range || 'Not specified'
+      })
+    });
+    
+    console.log('Backend response status:', backendResponse.status);
+    
+    if (!backendResponse.ok) {
+      const errorText = await backendResponse.text();
+      throw new Error(`Backend responded with ${backendResponse.status}: ${errorText}`);
+    }
+    
+    const data = await backendResponse.json();
+    console.log('Backend response data:', data);
+    
+    return response.status(200).json({
+      ...data,
+      proxy_used: true,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('Proxy error:', error);
+    
+    return response.status(500).json({
+      error: 'Proxy service error',
+      message: error.message,
+      service_used: 'proxy-fallback',
+      timestamp: new Date().toISOString()
+    });
+  }
 }
