@@ -2,24 +2,24 @@
   "version": 2,
   "builds": [
     {
-      "src": "frontend/package.json",
+      "src": "package.json",
       "use": "@vercel/static-build"
     },
     {
-      "src": "frontend/api/**/*.js",
+      "src": "api/**/*.js",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/frontend/api/$1"
+      "dest": "/api/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "/frontend/dist/$1"
+      "dest": "/dist/$1"
     }
   ],
-  "installCommand": "cd frontend && npm install",
-  "buildCommand": "cd frontend && npm run build"
+  "installCommand": "npm install",
+  "buildCommand": "npm run build"
 }

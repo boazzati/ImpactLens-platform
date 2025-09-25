@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "cd frontend && pnpm install --no-frozen-lockfile && pnpm run build && cp -r dist/* ../dist/",
-    "dev": "cd frontend && pnpm run dev",
-    "preview": "cd frontend && pnpm run preview"
+    "build": "cd frontend && npm install && npm run build && cp -r dist/* ../dist/",
+    "dev": "cd frontend && npm run dev",
+    "preview": "cd frontend && npm run preview"
   },
   "devDependencies": {
     "vite": "^6.3.5"
