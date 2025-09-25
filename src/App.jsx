@@ -237,16 +237,16 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       {/* Header */}
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
+      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+        <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-4">
               <div className="w-10 h-10 impactlens-gradient rounded-lg flex items-center justify-center">
                 <Zap className="w-6 h-6 text-white" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold impactlens-text-gradient">ImpactLens</h1>
-                <p className="text-sm text-muted-foreground">AI-Powered Partnership Intelligence</p>
+                <p className="text-sm text-muted-foreground">Partnership Intelligence Platform</p>
               </div>
             </div>
             
