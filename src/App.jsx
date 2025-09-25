@@ -327,23 +327,29 @@ function App() {
                         <SelectValue placeholder="Select partnership type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="co-branding">Co-Branding</SelectItem>
+                        <SelectItem value="co-branding">Co-branding</SelectItem>
+                        <SelectItem value="joint-venture">Joint Venture</SelectItem>
+                        <SelectItem value="licensing">Licensing</SelectItem>
                         <SelectItem value="sponsorship">Sponsorship</SelectItem>
-                        <SelectItem value="collaboration">Product Collaboration</SelectItem>
-                        <SelectItem value="event">Event Partnership</SelectItem>
-                        <SelectItem value="licensing">Licensing Agreement</SelectItem>
+                        <SelectItem value="distribution">Distribution Partnership</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="targetAudience">Target Audience</Label>
-                    <Input 
-                      id="targetAudience"
-                      placeholder="Describe target audience"
-                      value={scenarioData.targetAudience}
-                      onChange={(e) => handleInputChange('targetAudience', e.target.value)}
-                    />
+                    <Select value={scenarioData.targetAudience} onValueChange={(value) => handleInputChange('targetAudience', value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select target audience" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="luxury-consumers">Luxury Consumers</SelectItem>
+                        <SelectItem value="tech-enthusiasts">Tech Enthusiasts</SelectItem>
+                        <SelectItem value="millennials">Millennials</SelectItem>
+                        <SelectItem value="gen-z">Gen Z</SelectItem>
+                        <SelectItem value="business-professionals">Business Professionals</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-2">
@@ -353,10 +359,11 @@ function App() {
                         <SelectValue placeholder="Select budget range" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="under-100k">Under $100K</SelectItem>
                         <SelectItem value="100k-500k">$100K - $500K</SelectItem>
                         <SelectItem value="500k-1m">$500K - $1M</SelectItem>
                         <SelectItem value="1m-5m">$1M - $5M</SelectItem>
-                        <SelectItem value="5m+">$5M+</SelectItem>
+                        <SelectItem value="over-5m">Over $5M</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
