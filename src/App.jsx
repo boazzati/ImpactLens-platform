@@ -411,7 +411,7 @@ function App() {
 
                   <div className="space-y-2">
                     <Label htmlFor="partnershipType">Partnership Type</Label>
-                    <Select value={scenarioData.partnershipType} onValueChange={(value) => handleInputChange('partnershipType', value)}>
+                    <Select value={scenarioData.partnershipType || undefined} onValueChange={(value) => handleInputChange('partnershipType', value)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select partnership type" />
                       </SelectTrigger>
@@ -427,7 +427,7 @@ function App() {
 
                   <div className="space-y-2">
                     <Label htmlFor="targetAudience">Target Audience</Label>
-                    <Select value={scenarioData.targetAudience} onValueChange={(value) => handleInputChange('targetAudience', value)}>
+                    <Select value={scenarioData.targetAudience || undefined} onValueChange={(value) => handleInputChange('targetAudience', value)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select target audience" />
                       </SelectTrigger>
@@ -443,7 +443,7 @@ function App() {
 
                   <div className="space-y-2">
                     <Label htmlFor="budget">Budget Range</Label>
-                    <Select value={scenarioData.budget} onValueChange={(value) => handleInputChange('budget', value)}>
+                    <Select value={scenarioData.budget || undefined} onValueChange={(value) => handleInputChange('budget', value)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select budget range" />
                       </SelectTrigger>
