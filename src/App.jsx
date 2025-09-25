@@ -103,27 +103,14 @@ function App() {
     };
 
     try {
-      // Try proxy endpoint first
-      let response;
-      try {
-        response = await fetch('/api/proxy', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestData)
-        });
-      } catch (proxyError) {
-        console.log('Proxy failed, trying direct connection:', proxyError);
-        // Fallback to direct connection
-        response = await fetch('https://impactlens-platform-20d6698d163f.herokuapp.com/api/analyze', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestData)
-        });
-      }
+      // Call the proxy endpoint
+      const response = await fetch('/api/proxy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData)
+      });
 
       clearInterval(progressInterval);
       setAnalysisProgress(100);

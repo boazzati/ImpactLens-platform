@@ -29,21 +29,8 @@ exports.handler = async (event, context) => {
     // Parse request body
     const requestData = JSON.parse(event.body);
     
-    // Validate required fields
-    if (!requestData.brand_a || !requestData.brand_b || !requestData.partnership_type) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ 
-          error: 'Missing required fields: brand_a, brand_b, partnership_type' 
-        })
-      };
-    }
-
     // Forward request to Heroku backend
-    const backendUrl = 'https://impactlens-platform-20d6698d163f.herokuapp.com/api/analyze';
-    
-    const response = await fetch(backendUrl, {
+    const response = await fetch('https://impactlens-platform-20d6698d163f.herokuapp.com/api/test-openai', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
