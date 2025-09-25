@@ -8,8 +8,10 @@ import { Badge } from '@/components/ui/badge.jsx'
 import { Progress } from '@/components/ui/progress.jsx'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts'
-import { TrendingUp, Users, Target, DollarSign, Sparkles, BarChart3, PieChart as PieChartIcon, LineChart as LineChartIcon, Download, Share2, Settings, Bell, User, LogOut } from 'lucide-react'
+import { TrendingUp, Users, Target, DollarSign, Sparkles, BarChart3, PieChart as PieChartIcon, LineChart as LineChartIcon, Download, Share2, Settings, Bell, User, LogOut, FileText, Presentation, Mail, MessageSquare, Copy, Link, Code } from 'lucide-react'
 import impactLensLogo from './assets/impactlens-logojustsymbol.png'
+import { exportToPDF, exportToPowerPoint } from './utils/exportUtils'
+import { shareViaEmail, shareViaTeams, shareViaWhatsApp, copyToClipboard, generateShareableLink, exportAsJSON } from './utils/shareUtils'
 import './App.css'
 
 // Sample data for charts
@@ -50,6 +52,10 @@ function App() {
 
   const [analysisResult, setAnalysisResult] = useState(null)
   const [connectionStatus, setConnectionStatus] = useState('connecting')
+  const [isExporting, setIsExporting] = useState(false)
+  const [showExportMenu, setShowExportMenu] = useState(false)
+  const [isSharing, setIsSharing] = useState(false)
+  const [showShareMenu, setShowShareMenu] = useState(false)
 
   // Test backend connection on load
   useEffect(() => {
@@ -161,6 +167,54 @@ function App() {
   const handleInputChange = (field, value) => {
     setScenarioData(prev => ({ ...prev, [field]: value }))
   }
+
+  const handleExportPDF = async () => {
+    if (!analysisResult) {
+      alert('Please run an analysis first before exporting.');
+      return;
+    }
+    
+    setIsExporting(true);
+    try {
+      const result = await exportToPDF(analysisResult, scenarioData);
+      if (result.success) {
+        alert(`PDF exported successfully as ${result.fileName}`);
+      } else {
+        alert(`Export failed: ${result.error}`);
+      }
+    } catch (error) {
+      alert(`Export failed: ${error.message}`);
+    } finally {
+      setIsExporting(false);
+      setShowExportMenu(false);
+    }
+  };
+
+
+
+  const handleExportPowerPoint = async () => {
+    if (!analysisResult) {
+      alert('Please run an analysis first before exporting.');
+      return;
+    }
+    
+    setIsExporting(true);
+    try {
+      const result = await exportToPowerPoint(analysisResult, scenarioData);
+      if (result.success) {
+        alert(`PowerPoint exported successfully as ${result.fileName}`);
+      } else {
+        alert(`Export failed: ${result.error}`);
+      }
+    } catch (error) {
+      alert(`Export failed: ${error.message}`);
+    } finally {
+      setIsExporting(false);
+      setShowExportMenu(false);
+    }
+  };
+
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -563,14 +617,104 @@ function App() {
                     )}
 
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="flex-1">
-                        <Download className="h-4 w-4 mr-2" />
-                        Export Report
-                      </Button>
-                      <Button variant="outline" size="sm" className="flex-1">
-                        <Share2 className="h-4 w-4 mr-2" />
-                        Share Analysis
-                      </Button>
+                      <div className="relative flex-1">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full"
+                          onClick={() => setShowExportMenu(!showExportMenu)}
+                          disabled={isExporting}
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          {isExporting ? 'Exporting...' : 'Export Report'}
+                        </Button>
+                        
+                        {showExportMenu && (
+                          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                            <button
+                              onClick={handleExportPDF}
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center"
+                              disabled={isExporting}
+                            >
+                              <FileText className="h-4 w-4 mr-2" />
+                              Export as PDF
+                            </button>
+                            <button
+                              onClick={handleExportPowerPoint}
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center border-t border-gray-100"
+                              disabled={isExporting}
+                            >
+                              <Presentation className="h-4 w-4 mr-2" />
+                              Export as PowerPoint
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="relative flex-1">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full"
+                          onClick={() => setShowShareMenu(!showShareMenu)}
+                          disabled={isSharing}
+                        >
+                          <Share2 className="h-4 w-4 mr-2" />
+                          {isSharing ? 'Sharing...' : 'Share Analysis'}
+                        </Button>
+                        
+                        {showShareMenu && (
+                          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                            <button
+                              onClick={handleShareEmail}
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center"
+                              disabled={isSharing}
+                            >
+                              <Mail className="h-4 w-4 mr-2" />
+                              Share via Email
+                            </button>
+                            <button
+                              onClick={handleShareTeams}
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center border-t border-gray-100"
+                              disabled={isSharing}
+                            >
+                              <MessageSquare className="h-4 w-4 mr-2" />
+                              Share via Teams
+                            </button>
+                            <button
+                              onClick={handleShareWhatsApp}
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center border-t border-gray-100"
+                              disabled={isSharing}
+                            >
+                              <MessageSquare className="h-4 w-4 mr-2" />
+                              Share via WhatsApp
+                            </button>
+                            <button
+                              onClick={handleCopyToClipboard}
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center border-t border-gray-100"
+                              disabled={isSharing}
+                            >
+                              <Copy className="h-4 w-4 mr-2" />
+                              Copy to Clipboard
+                            </button>
+                            <button
+                              onClick={handleGenerateLink}
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center border-t border-gray-100"
+                              disabled={isSharing}
+                            >
+                              <Link className="h-4 w-4 mr-2" />
+                              Generate Link
+                            </button>
+                            <button
+                              onClick={handleExportJSON}
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center border-t border-gray-100"
+                              disabled={isSharing}
+                            >
+                              <Code className="h-4 w-4 mr-2" />
+                              Export as JSON
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -579,41 +723,711 @@ function App() {
           </TabsContent>
 
           {/* Partners Tab */}
-          <TabsContent value="partners" className="animate-fade-in">
+          <TabsContent value="partners" className="space-y-8 animate-fade-in">
+            {/* Partner Search and Filters */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <Card className="lg:col-span-2 luxury-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    Partner Discovery
+                  </CardTitle>
+                  <CardDescription>Find and connect with potential partnership opportunities</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-4">
+                    <Input 
+                      placeholder="Search partners by name, industry, or location..." 
+                      className="flex-1"
+                    />
+                    <Button>
+                      <Users className="h-4 w-4 mr-2" />
+                      Search
+                    </Button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Select>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Industry" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="technology">Technology</SelectItem>
+                        <SelectItem value="finance">Finance</SelectItem>
+                        <SelectItem value="healthcare">Healthcare</SelectItem>
+                        <SelectItem value="retail">Retail</SelectItem>
+                        <SelectItem value="automotive">Automotive</SelectItem>
+                        <SelectItem value="energy">Energy</SelectItem>
+                        <SelectItem value="luxury">Luxury Goods</SelectItem>
+                        <SelectItem value="aerospace">Aerospace</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    
+                    <Select>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Region" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="europe">Europe</SelectItem>
+                        <SelectItem value="north-america">North America</SelectItem>
+                        <SelectItem value="asia-pacific">Asia Pacific</SelectItem>
+                        <SelectItem value="middle-east">Middle East</SelectItem>
+                        <SelectItem value="africa">Africa</SelectItem>
+                        <SelectItem value="latin-america">Latin America</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    
+                    <Select>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Company Size" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="startup">Startup (1-50)</SelectItem>
+                        <SelectItem value="small">Small (51-200)</SelectItem>
+                        <SelectItem value="medium">Medium (201-1000)</SelectItem>
+                        <SelectItem value="large">Large (1000+)</SelectItem>
+                        <SelectItem value="enterprise">Enterprise (10000+)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="luxury-shadow">
+                <CardHeader>
+                  <CardTitle className="text-sm">Quick Stats</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="text-center p-3 bg-primary/5 rounded-lg">
+                    <div className="text-2xl font-bold text-primary">2,847</div>
+                    <div className="text-xs text-muted-foreground">Total Partners</div>
+                  </div>
+                  <div className="text-center p-3 bg-green-50 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">156</div>
+                    <div className="text-xs text-muted-foreground">Active Partnerships</div>
+                  </div>
+                  <div className="text-center p-3 bg-blue-50 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">43</div>
+                    <div className="text-xs text-muted-foreground">Pending Proposals</div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Partner Directory */}
             <Card className="luxury-shadow">
               <CardHeader>
-                <CardTitle>Partner Directory</CardTitle>
-                <CardDescription>Discover and manage partnership opportunities</CardDescription>
+                <CardTitle>Recommended Partners</CardTitle>
+                <CardDescription>AI-curated partnership opportunities based on your profile</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-12">
-                  <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Partner Discovery Coming Soon</h3>
-                  <p className="text-muted-foreground">
-                    Advanced partner matching and discovery features will be available in the next release.
-                  </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {/* Partner Card 1 */}
+                  <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <span className="text-blue-600 font-bold text-lg">MS</span>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold">Microsoft</h3>
+                          <p className="text-sm text-muted-foreground">Technology</p>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="text-green-600 border-green-600">
+                        95% Match
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Global technology leader with strong enterprise solutions and cloud infrastructure.
+                    </p>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+                      <span>📍 Redmond, WA</span>
+                      <span>👥 221,000 employees</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" className="flex-1">Connect</Button>
+                      <Button size="sm" variant="outline">View Profile</Button>
+                    </div>
+                  </div>
+
+                  {/* Partner Card 2 */}
+                  <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                          <span className="text-red-600 font-bold text-lg">N</span>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold">Netflix</h3>
+                          <p className="text-sm text-muted-foreground">Entertainment</p>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="text-orange-600 border-orange-600">
+                        87% Match
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Leading streaming platform with global reach and content creation capabilities.
+                    </p>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+                      <span>📍 Los Gatos, CA</span>
+                      <span>👥 12,800 employees</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" className="flex-1">Connect</Button>
+                      <Button size="sm" variant="outline">View Profile</Button>
+                    </div>
+                  </div>
+
+                  {/* Partner Card 3 */}
+                  <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                          <span className="text-purple-600 font-bold text-lg">S</span>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold">Spotify</h3>
+                          <p className="text-sm text-muted-foreground">Music & Audio</p>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="text-blue-600 border-blue-600">
+                        82% Match
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Audio streaming platform with personalization and discovery capabilities.
+                    </p>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+                      <span>📍 Stockholm, Sweden</span>
+                      <span>👥 9,800 employees</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" className="flex-1">Connect</Button>
+                      <Button size="sm" variant="outline">View Profile</Button>
+                    </div>
+                  </div>
+
+                  {/* Partner Card 4 */}
+                  <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                          <span className="text-green-600 font-bold text-lg">NV</span>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold">NVIDIA</h3>
+                          <p className="text-sm text-muted-foreground">Semiconductors</p>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="text-green-600 border-green-600">
+                        91% Match
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Leading AI computing platform with cutting-edge GPU technology.
+                    </p>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+                      <span>📍 Santa Clara, CA</span>
+                      <span>👥 29,600 employees</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" className="flex-1">Connect</Button>
+                      <Button size="sm" variant="outline">View Profile</Button>
+                    </div>
+                  </div>
+
+                  {/* Partner Card 5 */}
+                  <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                          <span className="text-yellow-600 font-bold text-lg">U</span>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold">Uber</h3>
+                          <p className="text-sm text-muted-foreground">Transportation</p>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="text-yellow-600 border-yellow-600">
+                        78% Match
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Mobility platform connecting riders and drivers with global presence.
+                    </p>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+                      <span>📍 San Francisco, CA</span>
+                      <span>👥 32,800 employees</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" className="flex-1">Connect</Button>
+                      <Button size="sm" variant="outline">View Profile</Button>
+                    </div>
+                  </div>
+
+                  {/* Partner Card 6 */}
+                  <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
+                          <span className="text-indigo-600 font-bold text-lg">A</span>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold">Adobe</h3>
+                          <p className="text-sm text-muted-foreground">Software</p>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="text-indigo-600 border-indigo-600">
+                        85% Match
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Creative software solutions and digital experience platforms.
+                    </p>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+                      <span>📍 San Jose, CA</span>
+                      <span>👥 28,000 employees</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" className="flex-1">Connect</Button>
+                      <Button size="sm" variant="outline">View Profile</Button>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mt-6 text-center">
+                  <Button variant="outline">
+                    Load More Partners
+                  </Button>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Partnership Management */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="luxury-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="h-5 w-5 text-primary" />
+                    Active Partnerships
+                  </CardTitle>
+                  <CardDescription>Manage your current partnership relationships</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <span className="text-blue-600 font-bold text-sm">G</span>
+                        </div>
+                        <div>
+                          <p className="font-medium">Google</p>
+                          <p className="text-sm text-muted-foreground">Strategic Alliance</p>
+                        </div>
+                      </div>
+                      <Badge className="bg-green-100 text-green-800">Active</Badge>
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                          <span className="text-red-600 font-bold text-sm">A</span>
+                        </div>
+                        <div>
+                          <p className="font-medium">Amazon</p>
+                          <p className="text-sm text-muted-foreground">Technology Partnership</p>
+                        </div>
+                      </div>
+                      <Badge className="bg-green-100 text-green-800">Active</Badge>
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                          <span className="text-purple-600 font-bold text-sm">S</span>
+                        </div>
+                        <div>
+                          <p className="font-medium">Salesforce</p>
+                          <p className="text-sm text-muted-foreground">Integration Partner</p>
+                        </div>
+                      </div>
+                      <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>
+                    </div>
+                  </div>
+                  
+                  <Button variant="outline" className="w-full mt-4">
+                    View All Partnerships
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="luxury-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-primary" />
+                    Partnership Insights
+                  </CardTitle>
+                  <CardDescription>Key metrics and performance indicators</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Partnership Success Rate</span>
+                      <span className="font-semibold">87%</span>
+                    </div>
+                    <Progress value={87} className="h-2" />
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Average Deal Size</span>
+                      <span className="font-semibold">$2.4M</span>
+                    </div>
+                    <Progress value={75} className="h-2" />
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Time to Close</span>
+                      <span className="font-semibold">45 days</span>
+                    </div>
+                    <Progress value={60} className="h-2" />
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Partner Satisfaction</span>
+                      <span className="font-semibold">4.8/5</span>
+                    </div>
+                    <Progress value={96} className="h-2" />
+                  </div>
+                  
+                  <Button variant="outline" className="w-full mt-4">
+                    View Detailed Analytics
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* Reports Tab */}
-          <TabsContent value="reports" className="animate-fade-in">
+          <TabsContent value="reports" className="space-y-8 animate-fade-in">
+            {/* Report Generation */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="luxury-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-primary" />
+                    Custom Report Builder
+                  </CardTitle>
+                  <CardDescription>Create tailored reports for your partnership analysis</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-sm font-medium">Report Type</label>
+                      <Select>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select report type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="partnership-analysis">Partnership Analysis</SelectItem>
+                          <SelectItem value="market-insights">Market Insights</SelectItem>
+                          <SelectItem value="roi-projection">ROI Projection</SelectItem>
+                          <SelectItem value="competitive-analysis">Competitive Analysis</SelectItem>
+                          <SelectItem value="risk-assessment">Risk Assessment</SelectItem>
+                          <SelectItem value="executive-summary">Executive Summary</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm font-medium">Time Period</label>
+                      <Select>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select time period" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="last-7-days">Last 7 Days</SelectItem>
+                          <SelectItem value="last-30-days">Last 30 Days</SelectItem>
+                          <SelectItem value="last-quarter">Last Quarter</SelectItem>
+                          <SelectItem value="last-6-months">Last 6 Months</SelectItem>
+                          <SelectItem value="last-year">Last Year</SelectItem>
+                          <SelectItem value="custom">Custom Range</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm font-medium">Include Sections</label>
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        <label className="flex items-center space-x-2">
+                          <input type="checkbox" defaultChecked className="rounded" />
+                          <span className="text-sm">Executive Summary</span>
+                        </label>
+                        <label className="flex items-center space-x-2">
+                          <input type="checkbox" defaultChecked className="rounded" />
+                          <span className="text-sm">Key Metrics</span>
+                        </label>
+                        <label className="flex items-center space-x-2">
+                          <input type="checkbox" defaultChecked className="rounded" />
+                          <span className="text-sm">Charts & Graphs</span>
+                        </label>
+                        <label className="flex items-center space-x-2">
+                          <input type="checkbox" className="rounded" />
+                          <span className="text-sm">Detailed Analysis</span>
+                        </label>
+                        <label className="flex items-center space-x-2">
+                          <input type="checkbox" className="rounded" />
+                          <span className="text-sm">Recommendations</span>
+                        </label>
+                        <label className="flex items-center space-x-2">
+                          <input type="checkbox" className="rounded" />
+                          <span className="text-sm">Risk Assessment</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2 pt-4">
+                    <Button className="flex-1">
+                      <FileText className="h-4 w-4 mr-2" />
+                      Generate Report
+                    </Button>
+                    <Button variant="outline">
+                      <Download className="h-4 w-4 mr-2" />
+                      Schedule
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="luxury-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5 text-primary" />
+                    Recent Reports
+                  </CardTitle>
+                  <CardDescription>Your latest generated reports and analytics</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <FileText className="h-4 w-4 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">Q4 Partnership Analysis</p>
+                          <p className="text-xs text-muted-foreground">Generated 2 hours ago</p>
+                        </div>
+                      </div>
+                      <Button size="sm" variant="ghost">
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                          <TrendingUp className="h-4 w-4 text-green-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">ROI Projection Report</p>
+                          <p className="text-xs text-muted-foreground">Generated yesterday</p>
+                        </div>
+                      </div>
+                      <Button size="sm" variant="ghost">
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                          <Target className="h-4 w-4 text-purple-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">Market Insights Summary</p>
+                          <p className="text-xs text-muted-foreground">Generated 3 days ago</p>
+                        </div>
+                      </div>
+                      <Button size="sm" variant="ghost">
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                          <AlertTriangle className="h-4 w-4 text-orange-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">Risk Assessment Report</p>
+                          <p className="text-xs text-muted-foreground">Generated 1 week ago</p>
+                        </div>
+                      </div>
+                      <Button size="sm" variant="ghost">
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <Button variant="outline" className="w-full mt-4">
+                    View All Reports
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Analytics Dashboard */}
             <Card className="luxury-shadow">
               <CardHeader>
-                <CardTitle>Reports & Analytics</CardTitle>
-                <CardDescription>Generate comprehensive partnership reports</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5 text-primary" />
+                  Analytics Dashboard
+                </CardTitle>
+                <CardDescription>Comprehensive insights and performance metrics</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-12">
-                  <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Advanced Reporting Coming Soon</h3>
-                  <p className="text-muted-foreground">
-                    Detailed reporting and export capabilities will be available in the next release.
-                  </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                  <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">847</div>
+                    <div className="text-sm text-blue-600/80">Total Analyses</div>
+                    <div className="text-xs text-green-600 mt-1">↑ 12% vs last month</div>
+                  </div>
+                  <div className="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">$4.2M</div>
+                    <div className="text-sm text-green-600/80">Projected ROI</div>
+                    <div className="text-xs text-green-600 mt-1">↑ 8% vs last month</div>
+                  </div>
+                  <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg">
+                    <div className="text-2xl font-bold text-purple-600">156</div>
+                    <div className="text-sm text-purple-600/80">Active Partners</div>
+                    <div className="text-xs text-green-600 mt-1">↑ 23% vs last month</div>
+                  </div>
+                  <div className="text-center p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg">
+                    <div className="text-2xl font-bold text-orange-600">92%</div>
+                    <div className="text-sm text-orange-600/80">Success Rate</div>
+                    <div className="text-xs text-green-600 mt-1">↑ 3% vs last month</div>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <h3 className="font-semibold">Partnership Performance Trends</h3>
+                    <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
+                      <div className="text-center">
+                        <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                        <p className="text-gray-500">Interactive chart showing partnership performance over time</p>
+                        <p className="text-sm text-gray-400 mt-1">Data visualization coming soon</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <h3 className="font-semibold">Industry Distribution</h3>
+                    <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
+                      <div className="text-center">
+                        <PieChart className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                        <p className="text-gray-500">Partnership distribution across industries</p>
+                        <p className="text-sm text-gray-400 mt-1">Interactive pie chart coming soon</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Scheduled Reports */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="luxury-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-primary" />
+                    Scheduled Reports
+                  </CardTitle>
+                  <CardDescription>Automated report generation and delivery</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                      <div>
+                        <p className="font-medium text-sm">Weekly Partnership Summary</p>
+                        <p className="text-xs text-muted-foreground">Every Monday at 9:00 AM</p>
+                      </div>
+                      <Badge className="bg-green-100 text-green-800">Active</Badge>
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                      <div>
+                        <p className="font-medium text-sm">Monthly ROI Analysis</p>
+                        <p className="text-xs text-muted-foreground">1st of every month at 8:00 AM</p>
+                      </div>
+                      <Badge className="bg-green-100 text-green-800">Active</Badge>
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                      <div>
+                        <p className="font-medium text-sm">Quarterly Executive Report</p>
+                        <p className="text-xs text-muted-foreground">Every quarter end</p>
+                      </div>
+                      <Badge className="bg-yellow-100 text-yellow-800">Paused</Badge>
+                    </div>
+                  </div>
+                  
+                  <Button variant="outline" className="w-full mt-4">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add New Schedule
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="luxury-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Settings className="h-5 w-5 text-primary" />
+                    Report Settings
+                  </CardTitle>
+                  <CardDescription>Configure your reporting preferences</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Email Notifications</span>
+                      <input type="checkbox" defaultChecked className="rounded" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Auto-save Reports</span>
+                      <input type="checkbox" defaultChecked className="rounded" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Include Charts</span>
+                      <input type="checkbox" defaultChecked className="rounded" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Compress Large Files</span>
+                      <input type="checkbox" className="rounded" />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Default Format</label>
+                    <Select>
+                      <SelectTrigger>
+                        <SelectValue placeholder="PDF" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pdf">PDF</SelectItem>
+                        <SelectItem value="excel">Excel</SelectItem>
+                        <SelectItem value="powerpoint">PowerPoint</SelectItem>
+                        <SelectItem value="word">Word</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <Button className="w-full">
+                    Save Settings
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </main>
