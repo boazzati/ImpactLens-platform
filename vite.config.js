@@ -4,9 +4,11 @@ import { resolve } from 'path'
 
 export default defineConfig({
   plugins: [react()],
+  base: './',
   build: {
     outDir: 'dist',
-    sourcemap: false
+    sourcemap: false,
+    assetsDir: 'assets'
   },
   resolve: {
     alias: {
