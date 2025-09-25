@@ -1,0 +1,27 @@
+# Ignore Python backend files - frontend only deployment
+backend/
+app.py
+requirements.txt
+runtime.txt
+Pipfile
+Pipfile.lock
+pyproject.toml
+*.py
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Ignore other non-frontend files
+.git/
+.gitignore
+README.md
+*.md
+.DS_Store
+Thumbs.db
