@@ -20,6 +20,6 @@
       "dest": "/dist/$1"
     }
   ],
-  "installCommand": "npm install",
+  "installCommand": "npm install --legacy-peer-deps",
   "buildCommand": "npm run build"
 }
